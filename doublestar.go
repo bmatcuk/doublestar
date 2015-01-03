@@ -1,14 +1,12 @@
 package doublestar
 
 import (
-  "fmt"
   "path"
   "strings"
   "unicode/utf8"
 )
 
 func SplitPathOnSeparator(path string, separator rune) []string {
-  fmt.Println("SplitPathOnSeparator")
   // if the separator is '\\', then we can just split...
   if separator == '\\' { return strings.Split(path, string(separator)) }
 
@@ -26,7 +24,6 @@ func SplitPathOnSeparator(path string, separator rune) []string {
     } else {
       end += start
     }
-    fmt.Println(start, end)
     ret[idx] = path[start:end]
     start = end + separatorLen
     idx++
@@ -35,7 +32,6 @@ func SplitPathOnSeparator(path string, separator rune) []string {
 }
 
 func indexRuneWithEscaping(s string, r rune) int {
-  fmt.Println("indexRuneWithEscaping")
   end := strings.IndexRune(s, r)
   if end == -1 { return -1 }
   if end > 0 && s[end - 1] == '\\' {
@@ -71,7 +67,6 @@ func indexRuneWithEscaping(s string, r rune) int {
 // returned error is ErrBadPattern, when pattern is malformed.
 //
 func Match(pattern, name string) (bool, error) {
-  fmt.Println("Match")
   return MatchWithSeparator(pattern, name, '/')
 }
 
@@ -100,14 +95,12 @@ func Match(pattern, name string) (bool, error) {
 // is malformed.
 //
 func MatchWithSeparator(pattern, name string, separator rune) (bool, error) {
-  fmt.Println("MatchWithSeparator")
   patternComponents := SplitPathOnSeparator(pattern, separator)
   nameComponents := SplitPathOnSeparator(name, separator)
   return doMatching(patternComponents, nameComponents)
 }
 
 func doMatching(patternComponents, nameComponents []string) (matched bool, err error) {
-  fmt.Println("doMatching")
   patternLen, nameLen := len(patternComponents), len(nameComponents)
   if patternLen == 0 && nameLen == 0 { return true, nil }
   if patternLen == 0 || nameLen == 0 { return false, nil }
@@ -132,7 +125,6 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 }
 
 func matchComponent(pattern, name string) (bool, error) {
-  fmt.Println("matchComponent")
   patternLen, nameLen := len(pattern), len(name)
   if patternLen == 0 && nameLen == 0 { return true, nil }
   if patternLen == 0 { return false, nil }
