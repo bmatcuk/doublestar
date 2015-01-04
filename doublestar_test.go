@@ -2,10 +2,7 @@
 
 package doublestar
 
-import (
-  "testing"
-  "path"
-)
+import "testing"
 
 type MatchTest struct {
 	pattern, s string
@@ -52,21 +49,21 @@ var matchTests = []MatchTest{
   {"[\\-x]", "x", true, nil},
   {"[\\-x]", "-", true, nil},
   {"[\\-x]", "a", false, nil},
-  {"[]a]", "]", false, path.ErrBadPattern},
-  {"[-]", "-", false, path.ErrBadPattern},
-  {"[x-]", "x", false, path.ErrBadPattern},
-  {"[x-]", "-", false, path.ErrBadPattern},
-  {"[x-]", "z", false, path.ErrBadPattern},
-  {"[-x]", "x", false, path.ErrBadPattern},
-  {"[-x]", "-", false, path.ErrBadPattern},
-  {"[-x]", "a", false, path.ErrBadPattern},
-  {"\\", "a", false, path.ErrBadPattern},
-  {"[a-b-c]", "a", false, path.ErrBadPattern},
-  {"[", "a", false, path.ErrBadPattern},
-  {"[^", "a", false, path.ErrBadPattern},
-  {"[^bc", "a", false, path.ErrBadPattern},
+  {"[]a]", "]", false, ErrBadPattern},
+  {"[-]", "-", false, ErrBadPattern},
+  {"[x-]", "x", false, ErrBadPattern},
+  {"[x-]", "-", false, ErrBadPattern},
+  {"[x-]", "z", false, ErrBadPattern},
+  {"[-x]", "x", false, ErrBadPattern},
+  {"[-x]", "-", false, ErrBadPattern},
+  {"[-x]", "a", false, ErrBadPattern},
+  {"\\", "a", false, ErrBadPattern},
+  {"[a-b-c]", "a", false, ErrBadPattern},
+  {"[", "a", false, ErrBadPattern},
+  {"[^", "a", false, ErrBadPattern},
+  {"[^bc", "a", false, ErrBadPattern},
   {"a[", "a", false, nil},
-  {"a[", "ab", false, path.ErrBadPattern},
+  {"a[", "ab", false, ErrBadPattern},
   {"*x", "xxx", true, nil},
   {"a/**", "a", false, nil},
   {"a/**", "a/b", true, nil},
@@ -81,7 +78,7 @@ var matchTests = []MatchTest{
   {"a/\\**", "a/*", true, nil},
   {"ab{c,d}", "abc", true, nil},
   {"ab{c,d,*}", "abcde", true, nil},
-  {"ab{c,d}[", "abcd", false, path.ErrBadPattern},
+  {"ab{c,d}[", "abcd", false, ErrBadPattern},
 }
 
 func TestMatch(t *testing.T) {
