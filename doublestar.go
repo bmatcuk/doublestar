@@ -54,6 +54,7 @@ func indexRuneWithEscaping(s string, r rune) int {
 //		'?'         matches any single non-path-separator character
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
+//		'{' { term } [ ',' { term } ... ] '}'
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
 //
@@ -82,6 +83,7 @@ func Match(pattern, name string) (bool, error) {
 //		'?'         matches any single non-path-separator character
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
+//		'{' { term } [ ',' { term } ... ] '}'
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
 //
@@ -198,6 +200,19 @@ func matchComponent(pattern, name string) (bool, error) {
       }
       patIdx = endClass + 1
       nameIdx += nameAdj
+    } else if patRune == '{' {
+      patIdx += patAdj
+      endOptions := indexRuneWithEscaping(pattern[patIdx:], '}')
+      if endOptions == -1 { return false, path.ErrBadPattern }
+      endOptions += patIdx
+      options := SplitPathOnSeparator(pattern[patIdx:endOptions], ',')
+      patIdx = endOptions + 1
+      for _, o := range options {
+	m, e := matchComponent(o + pattern[patIdx:], name[nameIdx:])
+	if e != nil { return false, e }
+	if m { return true, nil }
+      }
+      return false, nil
     } else if patRune == '?' || patRune == nameRune {
       patIdx += patAdj
       nameIdx += nameAdj

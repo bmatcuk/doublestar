@@ -79,6 +79,9 @@ var matchTests = []MatchTest{
   {"a/**/d", "a/b/c/d", true, nil},
   {"a/\\**", "a/b/c", false, nil},
   {"a/\\**", "a/*", true, nil},
+  {"ab{c,d}", "abc", true, nil},
+  {"ab{c,d,*}", "abcde", true, nil},
+  {"ab{c,d}[", "abcd", false, path.ErrBadPattern},
 }
 
 func TestMatch(t *testing.T) {
