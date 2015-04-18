@@ -5,8 +5,11 @@ go:
   - 1.4
 
 before_install:
-  sudo pip install codecov
+  - sudo pip install codecov
+
+script:
+  - go test -coverprofile=coverage.txt -covermode=atomic
 
 after_success:
-  codecov
+  - codecov
 
