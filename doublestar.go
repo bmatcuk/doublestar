@@ -7,6 +7,8 @@ import (
   "unicode/utf8"
 )
 
+var ErrBadPattern = path.ErrBadPattern
+
 func SplitPathOnSeparator(path string, separator rune) []string {
   // if the separator is '\\', then we can just split...
   if separator == '\\' { return strings.Split(path, string(separator)) }
@@ -55,6 +57,7 @@ func indexRuneWithEscaping(s string, r rune) int {
 //		'?'         matches any single non-path-separator character
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
+//		'{' { term } [ ',' { term } ... ] '}'
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
 //
@@ -92,6 +95,7 @@ func PathMatch(pattern, name string) (bool, error) {
 //		'?'         matches any single non-path-separator character
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
+//		'{' { term } [ ',' { term } ... ] '}'
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
 //
@@ -169,7 +173,7 @@ func matchComponent(pattern, name string) (bool, error) {
       patIdx += patAdj
       patRune, patAdj = utf8.DecodeRuneInString(pattern[patIdx:])
       if patRune == utf8.RuneError {
-	return false, path.ErrBadPattern
+	return false, ErrBadPattern
       } else if patRune == nameRune {
 	patIdx += patAdj
 	nameIdx += nameAdj
@@ -187,7 +191,7 @@ func matchComponent(pattern, name string) (bool, error) {
     } else if patRune == '[' {
       patIdx += patAdj
       endClass := indexRuneWithEscaping(pattern[patIdx:], ']')
-      if endClass == -1 { return false, path.ErrBadPattern }
+      if endClass == -1 { return false, ErrBadPattern }
       endClass += patIdx
       classRunes := []rune(pattern[patIdx:endClass])
       classRunesLen := len(classRunes)
@@ -197,28 +201,28 @@ func matchComponent(pattern, name string) (bool, error) {
 	if classRunes[0] == '^' { classIdx++ }
 	for classIdx < classRunesLen {
 	  low := classRunes[classIdx]
-	  if low == '-' { return false, path.ErrBadPattern }
+	  if low == '-' { return false, ErrBadPattern }
 	  classIdx++
 	  if low == '\\' {
 	    if classIdx < classRunesLen {
 	      low = classRunes[classIdx]
 	      classIdx++
 	    } else {
-	      return false, path.ErrBadPattern
+	      return false, ErrBadPattern
 	    }
 	  }
 	  high := low
 	  if classIdx < classRunesLen && classRunes[classIdx] == '-' {
-	    if classIdx++; classIdx >= classRunesLen { return false, path.ErrBadPattern }
+	    if classIdx++; classIdx >= classRunesLen { return false, ErrBadPattern }
 	    high = classRunes[classIdx]
-	    if high == '-' { return false, path.ErrBadPattern }
+	    if high == '-' { return false, ErrBadPattern }
 	    classIdx++
 	    if high == '\\' {
 	      if classIdx < classRunesLen {
 		high = classRunes[classIdx]
 		classIdx++
 	      } else {
-		return false, path.ErrBadPattern
+		return false, ErrBadPattern
 	      }
 	    }
 	  }
@@ -226,10 +230,23 @@ func matchComponent(pattern, name string) (bool, error) {
 	}
 	if matchClass == (classRunes[0] == '^') { return false, nil }
       } else {
-	return false, path.ErrBadPattern
+	return false, ErrBadPattern
       }
       patIdx = endClass + 1
       nameIdx += nameAdj
+    } else if patRune == '{' {
+      patIdx += patAdj
+      endOptions := indexRuneWithEscaping(pattern[patIdx:], '}')
+      if endOptions == -1 { return false, ErrBadPattern }
+      endOptions += patIdx
+      options := SplitPathOnSeparator(pattern[patIdx:endOptions], ',')
+      patIdx = endOptions + 1
+      for _, o := range options {
+	m, e := matchComponent(o + pattern[patIdx:], name[nameIdx:])
+	if e != nil { return false, e }
+	if m { return true, nil }
+      }
+      return false, nil
     } else if patRune == '?' || patRune == nameRune {
       patIdx += patAdj
       nameIdx += nameAdj
