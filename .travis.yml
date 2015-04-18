@@ -4,3 +4,9 @@ go:
   - 1.3
   - 1.4
 
+before_install:
+  sudo pip install codecov
+
+after_success:
+  codecov
+
