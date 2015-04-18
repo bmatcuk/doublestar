@@ -130,10 +130,11 @@ func matchWithSeparator(pattern, name string, separator rune) (bool, error) {
 func Glob(pattern string) (matches []string, err error) {
   patternComponents := SplitPathOnSeparator(pattern, os.PathSeparator)
   patternLen := len(patternComponents)
-  if patternLen == 0 { return false, nil }
+  if patternLen == 0 { return nil, nil }
   patIdx := 0
   for ; patIdx < patternLen; {
   }
+  return nil, nil
 }
 
 func doMatching(patternComponents, nameComponents []string) (matched bool, err error) {
