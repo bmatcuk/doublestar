@@ -1,14 +1,13 @@
 package doublestar
 
 import (
-  "fmt"
   "path"
+  "os"
   "strings"
   "unicode/utf8"
 )
 
 func SplitPathOnSeparator(path string, separator rune) []string {
-  fmt.Println("SplitPathOnSeparator")
   // if the separator is '\\', then we can just split...
   if separator == '\\' { return strings.Split(path, string(separator)) }
 
@@ -26,7 +25,6 @@ func SplitPathOnSeparator(path string, separator rune) []string {
     } else {
       end += start
     }
-    fmt.Println(start, end)
     ret[idx] = path[start:end]
     start = end + separatorLen
     idx++
@@ -35,7 +33,6 @@ func SplitPathOnSeparator(path string, separator rune) []string {
 }
 
 func indexRuneWithEscaping(s string, r rune) int {
-  fmt.Println("indexRuneWithEscaping")
   end := strings.IndexRune(s, r)
   if end == -1 { return -1 }
   if end > 0 && s[end - 1] == '\\' {
@@ -71,8 +68,16 @@ func indexRuneWithEscaping(s string, r rune) int {
 // returned error is ErrBadPattern, when pattern is malformed.
 //
 func Match(pattern, name string) (bool, error) {
-  fmt.Println("Match")
-  return MatchWithSeparator(pattern, name, '/')
+  return matchWithSeparator(pattern, name, '/')
+}
+
+// PathMatch is like Match except that it uses your system's path separator.
+// For most systems, this will be '/'. However, for Windows, it would be '\\'.
+// Note that for systems where the path separator is '\\', escaping is
+// disabled.
+//
+func PathMatch(pattern, name string) (bool, error) {
+  return matchWithSeparator(pattern, name, os.PathSeparator)
 }
 
 // Match returns true if name matches the shell file name pattern.
@@ -99,15 +104,35 @@ func Match(pattern, name string) (bool, error) {
 // The only possible returned error is ErrBadPattern, when pattern
 // is malformed.
 //
-func MatchWithSeparator(pattern, name string, separator rune) (bool, error) {
-  fmt.Println("MatchWithSeparator")
+func matchWithSeparator(pattern, name string, separator rune) (bool, error) {
   patternComponents := SplitPathOnSeparator(pattern, separator)
   nameComponents := SplitPathOnSeparator(name, separator)
   return doMatching(patternComponents, nameComponents)
 }
 
+// Glob returns the names of all files matching pattern or nil
+// if there is no matching file. The syntax of pattern is the same
+// as in Match. The pattern may describe hierarchical names such as
+// /usr/*/bin/ed (assuming the Separator is '/').
+//
+// Glob ignores file system errors such as I/O errors reading directories.
+// The only possible returned error is ErrBadPattern, when pattern
+// is malformed.
+//
+// Your system path separator is automatically used. This means on
+// systems where the separator is '\\' (Windows), escaping will be
+// disabled.
+//
+func Glob(pattern string) (matches []string, err error) {
+  patternComponents := SplitPathOnSeparator(pattern, os.PathSeparator)
+  patternLen := len(patternComponents)
+  if patternLen == 0 { return false, nil }
+  patIdx := 0
+  for ; patIdx < patternLen; {
+  }
+}
+
 func doMatching(patternComponents, nameComponents []string) (matched bool, err error) {
-  fmt.Println("doMatching")
   patternLen, nameLen := len(patternComponents), len(nameComponents)
   if patternLen == 0 && nameLen == 0 { return true, nil }
   if patternLen == 0 || nameLen == 0 { return false, nil }
@@ -132,7 +157,6 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 }
 
 func matchComponent(pattern, name string) (bool, error) {
-  fmt.Println("matchComponent")
   patternLen, nameLen := len(pattern), len(name)
   if patternLen == 0 && nameLen == 0 { return true, nil }
   if patternLen == 0 { return false, nil }
