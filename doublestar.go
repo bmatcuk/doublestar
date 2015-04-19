@@ -56,7 +56,7 @@ func indexRuneWithEscaping(s string, r rune) int {
 //                          path separators.
 //		'?'         matches any single non-path-separator character
 //		'[' [ '^' ] { character-range } ']'
-//		            character class (must be non-empty)
+//			    character class (must be non-empty)
 //		'{' { term } [ ',' { term } ... ] '}'
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
@@ -94,7 +94,7 @@ func PathMatch(pattern, name string) (bool, error) {
 //                          path separators.
 //		'?'         matches any single non-path-separator character
 //		'[' [ '^' ] { character-range } ']'
-//		            character class (must be non-empty)
+//			    character class (must be non-empty)
 //		'{' { term } [ ',' { term } ... ] '}'
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
