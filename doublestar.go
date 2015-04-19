@@ -154,8 +154,7 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 //
 func Glob(pattern string) (matches []string, err error) {
   patternComponents := splitPathOnSeparator(pattern, os.PathSeparator)
-  patternLen := len(patternComponents)
-  if patternLen == 0 { return nil, nil }
+  if len(patternComponents) == 0 { return nil, nil }
 
   // if the first pattern component is blank, the pattern is an absolute path.
   if patternComponents[0] == "" {
@@ -173,7 +172,7 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
   patLen := len(components)
   patIdx := 0
   for ; patIdx < patLen; patIdx++ {
-    if strings.IndexAny(components[patIdx], "*?[{") >= 0 { break }
+    if strings.IndexAny(components[patIdx], "*?[{\\") >= 0 { break }
   }
   if patIdx > 0 {
     basedir = filepath.Join(basedir, filepath.Join(components[0:patIdx]...))
@@ -199,18 +198,24 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
   defer dir.Close()
 
   files, _ := dir.Readdir(-1)
+  lastComponent := patIdx + 1 >= patLen
   if components[patIdx] == "**" {
     // if the current component is a doublestar, we'll try depth-first
     for _, file := range files {
       if file.IsDir() {
+	m = append(m, filepath.Join(basedir, file.Name()))
 	m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx:], m)
+      } else if lastComponent {
+	// if the pattern's last component is a doublestar, we match filenames, too
+	m = append(m, filepath.Join(basedir, file.Name()))
       }
     }
+    if lastComponent { return }
     patIdx++
+    lastComponent = patIdx + 1 >= patLen
   }
 
   var match bool
-  lastComponent := patIdx + 1 >= patLen
   for _, file := range files {
     match, e = matchComponent(components[patIdx], file.Name())
     if e != nil { return }
