@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+  "path/filepath"
   "path"
   "os"
   "strings"
@@ -155,10 +156,73 @@ func Glob(pattern string) (matches []string, err error) {
   patternComponents := splitPathOnSeparator(pattern, os.PathSeparator)
   patternLen := len(patternComponents)
   if patternLen == 0 { return nil, nil }
-  patIdx := 0
-  for ; patIdx < patternLen; {
+
+  // if the first pattern component is blank, the pattern is an absolute path.
+  if patternComponents[0] == "" {
+    return doGlob("", patternComponents, matches)
   }
-  return nil, nil
+  return doGlob(".", patternComponents, matches)
+}
+
+func doGlob(basedir string, components, matches []string) (m []string, e error) {
+  m = matches
+  e = nil
+
+  // figure out how many components we don't need to glob because they're
+  // just straight directory names
+  patLen := len(components)
+  patIdx := 0
+  for ; patIdx < patLen; patIdx++ {
+    if strings.IndexAny(components[patIdx], "*?[{") >= 0 { break }
+  }
+  if patIdx > 0 {
+    basedir = filepath.Join(basedir, filepath.Join(components[0:patIdx]...))
+  }
+
+  // Stat will return an error if the file/directory doesn't exist
+  fi, err := os.Stat(basedir)
+  if err != nil { return }
+
+  // if there are no more components, we've found a match
+  if patIdx >= patLen {
+    m = append(m, basedir)
+    return
+  }
+
+  // otherwise, we need to check each item in the directory...
+  // so confirm it's a directory first...
+  if !fi.IsDir() { return }
+
+  // read directory
+  dir, err := os.Open(basedir)
+  if err != nil { return }
+  defer dir.Close()
+
+  files, _ := dir.Readdir(-1)
+  if components[patIdx] == "**" {
+    // if the current component is a doublestar, we'll try depth-first
+    for _, file := range files {
+      if file.IsDir() {
+	m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx:], m)
+      }
+    }
+    patIdx++
+  }
+
+  var match bool
+  lastComponent := patIdx + 1 >= patLen
+  for _, file := range files {
+    match, e = matchComponent(components[patIdx], file.Name())
+    if e != nil { return }
+    if match {
+      if lastComponent {
+	m = append(m, filepath.Join(basedir, file.Name()))
+      } else {
+	m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx + 1:], m)
+      }
+    }
+  }
+  return
 }
 
 func matchComponent(pattern, name string) (bool, error) {
