@@ -38,21 +38,21 @@ import "github.com/bmatcuk/doublestar"
 func Match(pattern, name string) (bool, error)
 ```
 
-Match returns true if `name` matches the file name `pattern` ([#patterns](see below)). `name` and `pattern` are split on forward slash (`/`) characters.
+Match returns true if `name` matches the file name `pattern` ([see below](#patterns)). `name` and `pattern` are split on forward slash (`/`) characters.
 
 ### PathMatch
 ```go
 func PathMatch(pattern, name string) (bool, error)
 ```
 
-PathMatch returns true  if `name` matches the file name `pattern` ([#patterns](see below)). The difference between Match and PathMatch is that PathMatch will automatically use your system's path separator to split `name` and `pattern`.
+PathMatch returns true  if `name` matches the file name `pattern` ([see below](#patterns)). The difference between Match and PathMatch is that PathMatch will automatically use your system's path separator to split `name` and `pattern`.
 
 ### Glob
 ```go
 func Glob(pattern string) ([]string, error)
 ```
 
-Glob finds all files and directories in the filesystem that match `pattern` ([#patterns](see below)).
+Glob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
 
 ## Patterns
 
@@ -63,7 +63,7 @@ Special Terms | Meaning
 `*`           | matches any sequence of non-path-separators
 `**`          | matches any sequence of characters, including path separators
 `?`           | matches any single non-path-separator character
-`[class]`     | matches a class of characters ([#character-classes](see below))
+`[class]`     | matches any single non-path-separator character against a class of characters ([see below](#character-classes))
 `{alt1,...}`  | matches a sequence of characters if one of the comma-separated alternatives matches
 
 Any character with a special meaning can be escaped with a backslash (`\`).
