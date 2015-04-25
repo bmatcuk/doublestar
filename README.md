@@ -4,7 +4,7 @@
 
 # doublestar
 
-**doublestar** is a [http://golang.org/](golang) implementation of path pattern matching and globbing with support for "doublestar" (aka globstar: `**`) patterns.
+**doublestar** is a [golang](http://golang.org/) implementation of path pattern matching and globbing with support for "doublestar" (aka globstar: `**`) patterns.
 
 doublestar patterns match files and directories recursively. For example, if you had the following directory structure:
 
