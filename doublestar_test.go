@@ -5,10 +5,10 @@ package doublestar
 import "testing"
 
 type MatchTest struct {
-	pattern, s string
-	match      bool
-	err        error
-	testGlob   bool
+  pattern, s string
+  match      bool
+  err        error
+  testGlob   bool
 }
 
 var matchTests = []MatchTest{

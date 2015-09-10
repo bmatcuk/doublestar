@@ -49,23 +49,23 @@ func indexRuneWithEscaping(s string, r rune) int {
 // Match returns true if name matches the shell file name pattern.
 // The pattern syntax is:
 //
-//	pattern:
-//		{ term }
-//	term:
-//		'*'         matches any sequence of non-path-separators
+//  pattern:
+//    { term }
+//  term:
+//    '*'         matches any sequence of non-path-separators
 //              '**'        matches any sequence of characters, including
 //                          path separators.
-//		'?'         matches any single non-path-separator character
-//		'[' [ '^' ] { character-range } ']'
-//			    character class (must be non-empty)
-//		'{' { term } [ ',' { term } ... ] '}'
-//		c           matches character c (c != '*', '?', '\\', '[')
-//		'\\' c      matches character c
+//    '?'         matches any single non-path-separator character
+//    '[' [ '^' ] { character-range } ']'
+//          character class (must be non-empty)
+//    '{' { term } [ ',' { term } ... ] '}'
+//    c           matches character c (c != '*', '?', '\\', '[')
+//    '\\' c      matches character c
 //
-//	character-range:
-//		c           matches character c (c != '\\', '-', ']')
-//		'\\' c      matches character c
-//		lo '-' hi   matches character c for lo <= c <= hi
+//  character-range:
+//    c           matches character c (c != '\\', '-', ']')
+//    '\\' c      matches character c
+//    lo '-' hi   matches character c for lo <= c <= hi
 //
 // Match requires pattern to match all of name, not just a substring.
 // The path-separator defaults to the '/' character. The only possible
@@ -87,23 +87,23 @@ func PathMatch(pattern, name string) (bool, error) {
 // Match returns true if name matches the shell file name pattern.
 // The pattern syntax is:
 //
-//	pattern:
-//		{ term }
-//	term:
-//		'*'         matches any sequence of non-path-separators
+//  pattern:
+//    { term }
+//  term:
+//    '*'         matches any sequence of non-path-separators
 //              '**'        matches any sequence of characters, including
 //                          path separators.
-//		'?'         matches any single non-path-separator character
-//		'[' [ '^' ] { character-range } ']'
-//			    character class (must be non-empty)
-//		'{' { term } [ ',' { term } ... ] '}'
-//		c           matches character c (c != '*', '?', '\\', '[')
-//		'\\' c      matches character c
+//    '?'         matches any single non-path-separator character
+//    '[' [ '^' ] { character-range } ']'
+//          character class (must be non-empty)
+//    '{' { term } [ ',' { term } ... ] '}'
+//    c           matches character c (c != '*', '?', '\\', '[')
+//    '\\' c      matches character c
 //
-//	character-range:
-//		c           matches character c (c != '\\', '-', ']')
-//		'\\' c      matches character c, unless separator is '\\'
-//		lo '-' hi   matches character c for lo <= c <= hi
+//  character-range:
+//    c           matches character c (c != '\\', '-', ']')
+//    '\\' c      matches character c, unless separator is '\\'
+//    lo '-' hi   matches character c for lo <= c <= hi
 //
 // Match requires pattern to match all of name, not just a substring.
 // The only possible returned error is ErrBadPattern, when pattern
@@ -124,9 +124,9 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
     if patternComponents[patIdx] == "**" {
       if patIdx++; patIdx >= patternLen { return true, nil }
       for ; nameIdx < nameLen; nameIdx++ {
-	if m, _ := doMatching(patternComponents[patIdx:], nameComponents[nameIdx:]); m {
-	  return true, nil
-	}
+        if m, _ := doMatching(patternComponents[patIdx:], nameComponents[nameIdx:]); m {
+          return true, nil
+        }
       }
       return false, nil
     } else {
@@ -158,7 +158,7 @@ func Glob(pattern string) (matches []string, err error) {
 
   // if the first pattern component is blank, the pattern is an absolute path.
   if patternComponents[0] == "" {
-    return doGlob("", patternComponents, matches)
+    return doGlob(string(filepath.Separator), patternComponents, matches)
   }
   return doGlob(".", patternComponents, matches)
 }
@@ -203,11 +203,11 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
     // if the current component is a doublestar, we'll try depth-first
     for _, file := range files {
       if file.IsDir() {
-	m = append(m, filepath.Join(basedir, file.Name()))
-	m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx:], m)
+        m = append(m, filepath.Join(basedir, file.Name()))
+        m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx:], m)
       } else if lastComponent {
-	// if the pattern's last component is a doublestar, we match filenames, too
-	m = append(m, filepath.Join(basedir, file.Name()))
+        // if the pattern's last component is a doublestar, we match filenames, too
+        m = append(m, filepath.Join(basedir, file.Name()))
       }
     }
     if lastComponent { return }
@@ -221,9 +221,9 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
     if e != nil { return }
     if match {
       if lastComponent {
-	m = append(m, filepath.Join(basedir, file.Name()))
+        m = append(m, filepath.Join(basedir, file.Name()))
       } else {
-	m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx + 1:], m)
+        m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx + 1:], m)
       }
     }
   }
@@ -243,19 +243,19 @@ func matchComponent(pattern, name string) (bool, error) {
       patIdx += patAdj
       patRune, patAdj = utf8.DecodeRuneInString(pattern[patIdx:])
       if patRune == utf8.RuneError {
-	return false, ErrBadPattern
+        return false, ErrBadPattern
       } else if patRune == nameRune {
-	patIdx += patAdj
-	nameIdx += nameAdj
+        patIdx += patAdj
+        nameIdx += nameAdj
       } else {
-	return false, nil
+        return false, nil
       }
     } else if patRune == '*' {
       if patIdx += patAdj; patIdx >= patternLen { return true, nil }
       for ; nameIdx < nameLen; nameIdx += nameAdj {
-	if m, _ := matchComponent(pattern[patIdx:], name[nameIdx:]); m {
-	  return true, nil
-	}
+        if m, _ := matchComponent(pattern[patIdx:], name[nameIdx:]); m {
+          return true, nil
+        }
       }
       return false, nil
     } else if patRune == '[' {
@@ -266,41 +266,41 @@ func matchComponent(pattern, name string) (bool, error) {
       classRunes := []rune(pattern[patIdx:endClass])
       classRunesLen := len(classRunes)
       if classRunesLen > 0 {
-	classIdx := 0
-	matchClass := false
-	if classRunes[0] == '^' { classIdx++ }
-	for classIdx < classRunesLen {
-	  low := classRunes[classIdx]
-	  if low == '-' { return false, ErrBadPattern }
-	  classIdx++
-	  if low == '\\' {
-	    if classIdx < classRunesLen {
-	      low = classRunes[classIdx]
-	      classIdx++
-	    } else {
-	      return false, ErrBadPattern
-	    }
-	  }
-	  high := low
-	  if classIdx < classRunesLen && classRunes[classIdx] == '-' {
-	    if classIdx++; classIdx >= classRunesLen { return false, ErrBadPattern }
-	    high = classRunes[classIdx]
-	    if high == '-' { return false, ErrBadPattern }
-	    classIdx++
-	    if high == '\\' {
-	      if classIdx < classRunesLen {
-		high = classRunes[classIdx]
-		classIdx++
-	      } else {
-		return false, ErrBadPattern
-	      }
-	    }
-	  }
-	  if low <= nameRune && nameRune <= high { matchClass = true }
-	}
-	if matchClass == (classRunes[0] == '^') { return false, nil }
+        classIdx := 0
+        matchClass := false
+        if classRunes[0] == '^' { classIdx++ }
+        for classIdx < classRunesLen {
+          low := classRunes[classIdx]
+          if low == '-' { return false, ErrBadPattern }
+          classIdx++
+          if low == '\\' {
+            if classIdx < classRunesLen {
+              low = classRunes[classIdx]
+              classIdx++
+            } else {
+              return false, ErrBadPattern
+            }
+          }
+          high := low
+          if classIdx < classRunesLen && classRunes[classIdx] == '-' {
+            if classIdx++; classIdx >= classRunesLen { return false, ErrBadPattern }
+            high = classRunes[classIdx]
+            if high == '-' { return false, ErrBadPattern }
+            classIdx++
+            if high == '\\' {
+              if classIdx < classRunesLen {
+                high = classRunes[classIdx]
+                classIdx++
+              } else {
+                return false, ErrBadPattern
+              }
+            }
+          }
+          if low <= nameRune && nameRune <= high { matchClass = true }
+        }
+        if matchClass == (classRunes[0] == '^') { return false, nil }
       } else {
-	return false, ErrBadPattern
+        return false, ErrBadPattern
       }
       patIdx = endClass + 1
       nameIdx += nameAdj
@@ -312,9 +312,9 @@ func matchComponent(pattern, name string) (bool, error) {
       options := splitPathOnSeparator(pattern[patIdx:endOptions], ',')
       patIdx = endOptions + 1
       for _, o := range options {
-	m, e := matchComponent(o + pattern[patIdx:], name[nameIdx:])
-	if e != nil { return false, e }
-	if m { return true, nil }
+        m, e := matchComponent(o + pattern[patIdx:], name[nameIdx:])
+        if e != nil { return false, e }
+        if m { return true, nil }
       }
       return false, nil
     } else if patRune == '?' || patRune == nameRune {
