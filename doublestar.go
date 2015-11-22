@@ -203,7 +203,9 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
     // if the current component is a doublestar, we'll try depth-first
     for _, file := range files {
       if file.IsDir() {
-        m = append(m, filepath.Join(basedir, file.Name()))
+        if lastComponent {
+          m = append(m, filepath.Join(basedir, file.Name()))
+        }
         m, e = doGlob(filepath.Join(basedir, file.Name()), components[patIdx:], m)
       } else if lastComponent {
         // if the pattern's last component is a doublestar, we match filenames, too
