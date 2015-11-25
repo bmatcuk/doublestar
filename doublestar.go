@@ -160,6 +160,11 @@ func Glob(basedir, pattern string) (matches []string, err error) {
   if patternComponents[0] == "" {
     return doGlob(string(filepath.Separator), patternComponents, matches)
   }
+  
+  if basedir == "" {
+    basedir = "."
+  }
+  
   return doGlob(basedir, patternComponents, matches)
 }
 
