@@ -152,7 +152,7 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 // systems where the separator is '\\' (Windows), escaping will be
 // disabled.
 //
-func Glob(pattern string) (matches []string, err error) {
+func Glob(basedir, pattern string) (matches []string, err error) {
   patternComponents := splitPathOnSeparator(pattern, os.PathSeparator)
   if len(patternComponents) == 0 { return nil, nil }
 
@@ -160,7 +160,7 @@ func Glob(pattern string) (matches []string, err error) {
   if patternComponents[0] == "" {
     return doGlob(string(filepath.Separator), patternComponents, matches)
   }
-  return doGlob(".", patternComponents, matches)
+  return doGlob(basedir, patternComponents, matches)
 }
 
 func doGlob(basedir string, components, matches []string) (m []string, e error) {
