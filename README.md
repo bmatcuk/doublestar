@@ -49,10 +49,11 @@ PathMatch returns true  if `name` matches the file name `pattern` ([see below](#
 
 ### Glob
 ```go
-func Glob(pattern string) ([]string, error)
+func Glob(basedir, pattern string) ([]string, error)
 ```
 
 Glob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
+If pattern is a relative path, it will be searched relative to `basedir`.
 
 ## Patterns
 
