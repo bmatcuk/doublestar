@@ -38,7 +38,7 @@ import "github.com/bmatcuk/doublestar"
 func Match(pattern, name string) (bool, error)
 ```
 
-Match returns true if `name` matches the file name `pattern` ([see below](#patterns)). `name` and `pattern` are split on forward slash (`/`) characters.
+Match returns true if `name` matches the file name `pattern` ([see below](#patterns)). `name` and `pattern` are split on forward slash (`/`) characters and may be relative or absolute.
 
 ### PathMatch
 ```go
@@ -52,7 +52,7 @@ PathMatch returns true  if `name` matches the file name `pattern` ([see below](#
 func Glob(pattern string) ([]string, error)
 ```
 
-Glob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
+Glob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)). `pattern` may be relative (to the current working directory), or absolute.
 
 ## Patterns
 
