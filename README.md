@@ -55,6 +55,15 @@ func Glob(basedir, pattern string) ([]string, error)
 Glob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
 If pattern is a relative path, it will be searched relative to `basedir`.
 
+### PathGlob
+```go
+func PathGlob(basedir, pattern string) ([]string, error)
+```
+
+PathGlob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
+If pattern is a relative path, it will be searched relative to `basedir`.
+The difference between Glob and PathGlob is that PathGlob will automatically use your system's path separator to split the `pattern`.
+
 ## Patterns
 
 **doublestar** supports the following special terms in the patterns:
