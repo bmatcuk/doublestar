@@ -119,7 +119,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest) {
     }
   }()
 
-  matches, err := Glob("test/" + tt.pattern)
+  matches, err := Glob(".", "test/" + tt.pattern)
   if inSlice("test/" + tt.s, matches) != tt.match {
     if tt.match {
       t.Errorf("#%v. Glob(%#q) = %#v - doesn't contain %v, but should", idx, tt.pattern, matches, tt.s)
