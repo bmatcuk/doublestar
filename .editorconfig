@@ -1,0 +1,3 @@
+[*.go]
+intent_style = space
+indent_size = 2

@@ -2,7 +2,10 @@
 
 package doublestar
 
-import "testing"
+import (
+  "path/filepath"
+  "testing"
+)
 
 type MatchTest struct {
   pattern, s string
@@ -119,8 +122,8 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest) {
     }
   }()
 
-  matches, err := Glob("test/" + tt.pattern)
-  if inSlice("test/" + tt.s, matches) != tt.match {
+  matches, err := GlobFrom(".", "test/"+tt.pattern)
+  if inSlice(filepath.FromSlash("test/"+tt.s), matches) != tt.match {
     if tt.match {
       t.Errorf("#%v. Glob(%#q) = %#v - doesn't contain %v, but should", idx, tt.pattern, matches, tt.s)
     } else {
@@ -134,8 +137,9 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest) {
 
 func inSlice(s string, a []string) bool {
   for _, i := range a {
-    if i == s { return true }
+    if i == s {
+      return true
+    }
   }
   return false
 }
-
