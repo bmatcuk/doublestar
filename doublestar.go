@@ -155,6 +155,7 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
   return patIdx >= patternLen && nameIdx >= nameLen, nil
 }
 
+
 // Glob returns the names of all files matching pattern or nil
 // if there is no matching file. The syntax of pattern is the same
 // as in Match. The pattern may describe hierarchical names such as
@@ -164,7 +165,30 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 // The only possible returned error is ErrBadPattern, when pattern
 // is malformed.
 //
-func Glob(basedir, pattern string) (matches []string, err error) {
+func Glob(pattern string) (matches []string, err error) {
+  patternComponents := splitPathOnSeparator(pattern, filepath.Separator)
+  if len(patternComponents) == 0 {
+    return nil, nil
+  }
+
+  // if the first pattern component is blank, the pattern is an absolute path.
+  if patternComponents[0] == "" {
+    return doGlob(string(filepath.Separator), patternComponents, matches)
+  }
+
+  return doGlob(".", patternComponents, matches)
+}
+
+// GlobFrom returns the names of all files matching pattern or nil
+// if there is no matching file. The syntax of pattern is the same
+// as in Match. The pattern may describe hierarchical names such as
+// /usr/*/bin/ed (assuming the Separator is '/').
+//
+// GlobFrom ignores file system errors such as I/O errors reading directories.
+// The only possible returned error is ErrBadPattern, when pattern
+// is malformed.
+//
+func GlobFrom(basedir, pattern string) (matches []string, err error) {
   patternComponents := splitPathOnSeparator(pattern, '/')
   if len(patternComponents) == 0 {
     return nil, nil
@@ -182,7 +206,7 @@ func Glob(basedir, pattern string) (matches []string, err error) {
   return doGlob(basedir, patternComponents, matches)
 }
 
-// PathGlob returns the names of all files matching pattern or nil
+// PathGlobFrom returns the names of all files matching pattern or nil
 // if there is no matching file. The syntax of pattern is the same
 // as in PathMatch. The pattern may describe hierarchical names such as
 // /usr/*/bin/ed (assuming the Separator is '/').
@@ -195,7 +219,7 @@ func Glob(basedir, pattern string) (matches []string, err error) {
 // systems where the separator is '\\' (Windows), escaping will be
 // disabled.
 //
-func PathGlob(basedir, pattern string) (matches []string, err error) {
+func PathGlobFrom(basedir, pattern string) (matches []string, err error) {
   patternComponents := splitPathOnSeparator(pattern, filepath.Separator)
   if len(patternComponents) == 0 {
     return nil, nil
