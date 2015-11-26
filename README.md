@@ -47,22 +47,29 @@ func PathMatch(pattern, name string) (bool, error)
 
 PathMatch returns true  if `name` matches the file name `pattern` ([see below](#patterns)). The difference between Match and PathMatch is that PathMatch will automatically use your system's path separator to split `name` and `pattern`.
 
-### Glob
+### PathGlob
 ```go
-func Glob(basedir, pattern string) ([]string, error)
+func Glob(pattern string) ([]string, error)
 ```
 
 Glob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
+
+### GlobFrom
+```go
+func GlobFrom(basedir, pattern string) ([]string, error)
+```
+
+GlobFrom finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
 If pattern is a relative path, it will be searched relative to `basedir`.
 
-### PathGlob
+### PathGlobFrom
 ```go
 func PathGlob(basedir, pattern string) ([]string, error)
 ```
 
-PathGlob finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
+PathGlobFrom finds all files and directories in the filesystem that match `pattern` ([see below](#patterns)).
 If pattern is a relative path, it will be searched relative to `basedir`.
-The difference between Glob and PathGlob is that PathGlob will automatically use your system's path separator to split the `pattern`.
+The difference between GlobFrom and PathGlobFrom is that PathGlobFrom will automatically use your system's path separator to split the `pattern`.
 
 ## Patterns
 
