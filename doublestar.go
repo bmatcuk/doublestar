@@ -153,9 +153,16 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 // disabled.
 //
 func Glob(pattern string) (matches []string, err error) {
+  var vol string
+  if vol = filepath.VolumeName(pattern); vol != "" {
+    pattern = strings.TrimPrefix(pattern, vol)
+  }
   patternComponents := splitPathOnSeparator(pattern, os.PathSeparator)
   if len(patternComponents) == 0 { return nil, nil }
 
+  if vol != "" {
+    return doGlob(vol+string(os.PathSeparator), patternComponents, matches)
+  }
   // if the first pattern component is blank, the pattern is an absolute path.
   if patternComponents[0] == "" {
     return doGlob(string(filepath.Separator), patternComponents, matches)
