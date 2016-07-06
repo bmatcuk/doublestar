@@ -2,7 +2,11 @@
 
 package doublestar
 
-import "testing"
+import (
+  "testing"
+  "path/filepath"
+  "runtime"
+)
 
 type MatchTest struct {
   pattern, s string
@@ -41,14 +45,14 @@ var matchTests = []MatchTest{
   {"*[a-ζ]", "A", false, nil, true},
   {"a?b", "a/b", false, nil, true},
   {"a*b", "a/b", false, nil, true},
-  {"[\\]a]", "]", true, nil, true},
-  {"[\\-]", "-", true, nil, true},
-  {"[x\\-]", "x", true, nil, true},
-  {"[x\\-]", "-", true, nil, true},
-  {"[x\\-]", "z", false, nil, true},
-  {"[\\-x]", "x", true, nil, true},
-  {"[\\-x]", "-", true, nil, true},
-  {"[\\-x]", "a", false, nil, true},
+  {"[\\]a]", "]", true, nil, runtime.GOOS!="windows"},
+  {"[\\-]", "-", true, nil, runtime.GOOS!="windows"},
+  {"[x\\-]", "x", true, nil, runtime.GOOS!="windows"},
+  {"[x\\-]", "-", true, nil, runtime.GOOS!="windows"},
+  {"[x\\-]", "z", false, nil, runtime.GOOS!="windows"},
+  {"[\\-x]", "x", true, nil, runtime.GOOS!="windows"},
+  {"[\\-x]", "-", true, nil, runtime.GOOS!="windows"},
+  {"[\\-x]", "a", false, nil, runtime.GOOS!="windows"},
   {"[]a]", "]", false, ErrBadPattern, true},
   {"[-]", "-", false, ErrBadPattern, true},
   {"[x-]", "x", false, ErrBadPattern, true},
@@ -57,7 +61,7 @@ var matchTests = []MatchTest{
   {"[-x]", "x", false, ErrBadPattern, true},
   {"[-x]", "-", false, ErrBadPattern, true},
   {"[-x]", "a", false, ErrBadPattern, true},
-  {"\\", "a", false, ErrBadPattern, true},
+  {"\\", "a", false, ErrBadPattern, runtime.GOOS!="windows"},
   {"[a-b-c]", "a", false, ErrBadPattern, true},
   {"[", "a", false, ErrBadPattern, true},
   {"[^", "a", false, ErrBadPattern, true},
@@ -77,7 +81,7 @@ var matchTests = []MatchTest{
   {"a/**/b", "a/b", true, nil, true},
   {"a/**/c", "a/b/c", true, nil, true},
   {"a/**/d", "a/b/c/d", true, nil, true},
-  {"a/\\**", "a/b/c", false, nil, true},
+  {"a/\\**", "a/b/c", false, nil, runtime.GOOS!="windows"},
   {"ab{c,d}", "abc", true, nil, true},
   {"ab{c,d,*}", "abcde", true, nil, true},
   {"ab{c,d}[", "abcd", false, ErrBadPattern, true},
@@ -117,7 +121,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest) {
     }
   }()
 
-  matches, err := Glob("test/" + tt.pattern)
+  matches, err := Glob(filepath.Join("test", tt.pattern))
   if inSlice("test/" + tt.s, matches) != tt.match {
     if tt.match {
       t.Errorf("#%v. Glob(%#q) = %#v - doesn't contain %v, but should", idx, tt.pattern, matches, tt.s)
@@ -132,8 +136,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest) {
 
 func inSlice(s string, a []string) bool {
   for _, i := range a {
-    if i == s { return true }
+    if filepath.FromSlash(i) == filepath.FromSlash(s) { return true }
   }
   return false
 }
-
