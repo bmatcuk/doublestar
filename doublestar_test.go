@@ -81,6 +81,8 @@ var matchTests = []MatchTest{
   {"ab{c,d}", "abc", true, nil, true},
   {"ab{c,d,*}", "abcde", true, nil, true},
   {"ab{c,d}[", "abcd", false, ErrBadPattern, true},
+  {"abc**", "abc", true, nil, true},
+  {"**abc", "abc", true, nil, true},
 }
 
 func TestMatch(t *testing.T) {

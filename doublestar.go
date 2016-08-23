@@ -327,7 +327,7 @@ func matchComponent(pattern, name string) (bool, error) {
     }
   }
   if patIdx >= patternLen && nameIdx >= nameLen { return true, nil }
-  if nameIdx >= nameLen && pattern[patIdx:] == "*" { return true, nil }
+  if nameIdx >= nameLen && pattern[patIdx:] == "*" || pattern[patIdx:] == "**" { return true, nil }
   return false, nil
 }
 
