@@ -179,7 +179,7 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
   }
 
   // Stat will return an error if the file/directory doesn't exist
-  fi, err := os.Stat(basedir)
+  fi, err := os.Lstat(basedir)
   if err != nil { return }
 
   // if there are no more components, we've found a match
