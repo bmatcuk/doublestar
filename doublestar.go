@@ -189,7 +189,13 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
   }
 
   // otherwise, we need to check each item in the directory...
-  // so confirm it's a directory first...
+  // first, if basedir is a symlink, follow it...
+  if fi.Mode() & os.ModeSymlink != 0 {
+    fi, err = os.Stat(basedir)
+    if err != nil { return }
+  }
+
+  // confirm it's a directory...
   if !fi.IsDir() { return }
 
   // read directory
