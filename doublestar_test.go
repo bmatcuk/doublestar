@@ -86,6 +86,7 @@ var matchTests = []MatchTest{
   {"broken-symlink", "broken-symlink", true, nil, true},
   {"working-symlink/c/*", "working-symlink/c/d", true, nil, true},
   {"working-sym*/*", "working-symlink/c", true, nil, true},
+  {"b/**/f", "b/symlink-dir/f", true, nil, true},
 }
 
 func TestMatch(t *testing.T) {

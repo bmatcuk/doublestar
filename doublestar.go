@@ -208,6 +208,12 @@ func doGlob(basedir string, components, matches []string) (m []string, e error) 
   if components[patIdx] == "**" {
     // if the current component is a doublestar, we'll try depth-first
     for _, file := range files {
+      // if symlink, we may want to follow
+      if file.Mode() & os.ModeSymlink != 0 {
+        file, err = os.Stat(filepath.Join(basedir, file.Name()))
+        if err != nil { continue }
+      }
+
       if file.IsDir() {
         if lastComponent {
           m = append(m, filepath.Join(basedir, file.Name()))
