@@ -2,7 +2,10 @@
 
 package doublestar
 
-import "testing"
+import (
+  "testing"
+  "path/filepath"
+)
 
 type MatchTest struct {
   pattern, s string
@@ -17,13 +20,13 @@ var matchTests = []MatchTest{
   {"*c", "abc", true, nil, true},
   {"a*", "a", true, nil, true},
   {"a*", "abc", true, nil, true},
-  {"a*", "ab/c", false, nil, true},
-  {"a*/b", "abc/b", true, nil, true},
-  {"a*/b", "a/c/b", false, nil, true},
-  {"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil, true},
-  {"a*b*c*d*e*/f", "axbxcxdxexxx/f", true, nil, true},
-  {"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", false, nil, true},
-  {"a*b*c*d*e*/f", "axbxcxdxexxx/fff", false, nil, true},
+  {"a*", filepath.Join("ab", "c"), false, nil, true},
+  {filepath.Join("a*", "b"), filepath.Join("abc", "b"), true, nil, true},
+  {filepath.Join("a*", "b"), filepath.Join("a", "c", "b"), false, nil, true},
+  {filepath.Join("a*b*c*d*e*", "f"), filepath.Join("axbxcxdxe", "f"), true, nil, true},
+  {filepath.Join("a*b*c*d*e*", "f"), filepath.Join("axbxcxdxexxx", "f"), true, nil, true},
+  {filepath.Join("a*b*c*d*e*", "f"), filepath.Join("axbxcxdxe", "xxx", "f"), false, nil, true},
+  {filepath.Join("a*b*c*d*e*", "f"), filepath.Join("axbxcxdxexxx", "fff"), false, nil, true},
   {"a*b?c*x", "abxbbxdbxebxczzx", true, nil, true},
   {"a*b?c*x", "abxbbxdbxebxczzy", false, nil, true},
   {"ab[c]", "abc", true, nil, true},
@@ -39,8 +42,8 @@ var matchTests = []MatchTest{
   {"a[^a][^a][^a]b", "a☺b", false, nil, true},
   {"[a-ζ]*", "α", true, nil, true},
   {"*[a-ζ]", "A", false, nil, true},
-  {"a?b", "a/b", false, nil, true},
-  {"a*b", "a/b", false, nil, true},
+  {"a?b", filepath.Join("a", "b"), false, nil, true},
+  {"a*b", filepath.Join("a", "b"), false, nil, true},
   {"[\\]a]", "]", true, nil, true},
   {"[\\-]", "-", true, nil, true},
   {"[x\\-]", "x", true, nil, true},
@@ -65,28 +68,28 @@ var matchTests = []MatchTest{
   {"a[", "a", false, nil, false},
   {"a[", "ab", false, ErrBadPattern, true},
   {"*x", "xxx", true, nil, true},
-  {"a/**", "a", false, nil, true},
-  {"a/**", "a/b", true, nil, true},
-  {"a/**", "a/b/c", true, nil, true},
-  {"**/c", "c", true, nil, true},
-  {"**/c", "b/c", true, nil, true},
-  {"**/c", "a/b/c", true, nil, true},
-  {"**/c", "a/b", false, nil, true},
-  {"**/c", "abcd", false, nil, true},
-  {"**/c", "a/abc", false, nil, true},
-  {"a/**/b", "a/b", true, nil, true},
-  {"a/**/c", "a/b/c", true, nil, true},
-  {"a/**/d", "a/b/c/d", true, nil, true},
-  {"a/\\**", "a/b/c", false, nil, true},
+  {filepath.Join("a", "**"), "a", false, nil, true},
+  {filepath.Join("a", "**"), filepath.Join("a", "b"), true, nil, true},
+  {filepath.Join("a", "**"), filepath.Join("a", "b", "c"), true, nil, true},
+  {filepath.Join("**", "c"), "c", true, nil, true},
+  {filepath.Join("**", "c"), filepath.Join("b", "c"), true, nil, true},
+  {filepath.Join("**", "c"), filepath.Join("a", "b", "c"), true, nil, true},
+  {filepath.Join("**", "c"), filepath.Join("a", "b"), false, nil, true},
+  {filepath.Join("**", "c"), "abcd", false, nil, true},
+  {filepath.Join("**", "c"), filepath.Join("a", "abc"), false, nil, true},
+  {filepath.Join("a", "**", "b"), filepath.Join("a", "b"), true, nil, true},
+  {filepath.Join("a", "**", "c"), filepath.Join("a", "b", "c"), true, nil, true},
+  {filepath.Join("a", "**", "d"), filepath.Join("a", "b", "c", "d"), true, nil, true},
+  {filepath.Join("a", "\\**"), filepath.Join("a", "b", "c"), false, nil, true},
   {"ab{c,d}", "abc", true, nil, true},
   {"ab{c,d,*}", "abcde", true, nil, true},
   {"ab{c,d}[", "abcd", false, ErrBadPattern, true},
   {"abc**", "abc", true, nil, true},
   {"**abc", "abc", true, nil, true},
   {"broken-symlink", "broken-symlink", true, nil, true},
-  {"working-symlink/c/*", "working-symlink/c/d", true, nil, true},
-  {"working-sym*/*", "working-symlink/c", true, nil, true},
-  {"b/**/f", "b/symlink-dir/f", true, nil, true},
+  {filepath.Join("working-symlink", "c", "*"), filepath.Join("working-symlink", "c", "d"), true, nil, true},
+  {filepath.Join("working-sym*", "*"), filepath.Join("working-symlink", "c"), true, nil, true},
+  {filepath.Join("b", "**", "f"), filepath.Join("b", "symlink-dir", "f"), true, nil, true},
 }
 
 func TestMatch(t *testing.T) {
@@ -123,8 +126,8 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest) {
     }
   }()
 
-  matches, err := Glob("test/" + tt.pattern)
-  if inSlice("test/" + tt.s, matches) != tt.match {
+  matches, err := Glob(filepath.Join("test", tt.pattern))
+  if inSlice(filepath.Join("test", tt.s), matches) != tt.match {
     if tt.match {
       t.Errorf("#%v. Glob(%#q) = %#v - doesn't contain %v, but should", idx, tt.pattern, matches, tt.s)
     } else {
