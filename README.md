@@ -92,10 +92,8 @@ Special Terms | Meaning
 `*`           | matches any sequence of non-path-separators
 `**`          | matches any sequence of characters, including path separators
 `?`           | matches any single non-path-separator character
-`[class]`     | matches any single non-path-separator character against a class
-              | of characters ([see below](#character-classes))
-`{alt1,...}`  | matches a sequence of characters if one of the comma-separated
-              | alternatives matches
+`[class]`     | matches any single non-path-separator character against a class of characters ([see below](#character-classes))
+`{alt1,...}`  | matches a sequence of characters if one of the comma-separated alternatives matches
 
 Any character with a special meaning can be escaped with a backslash (`\`).
 
