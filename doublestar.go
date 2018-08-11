@@ -189,7 +189,7 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 // Note: this is meant as a drop-in replacement for filepath.Glob().
 //
 func Glob(pattern string) (matches []string, err error) {
-	patternComponents := splitPathOnSeparator(filepath.FromSlash(pattern), '/')
+	patternComponents := splitPathOnSeparator(filepath.ToSlash(pattern), '/')
 	if len(patternComponents) == 0 {
 		return nil, nil
 	}
