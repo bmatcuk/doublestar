@@ -38,6 +38,7 @@ func splitPathOnSeparator(path string, separator rune) []string {
 		start = end + separatorLen
 		idx++
 	}
+	return ret
 	return ret[:idx]
 }
 
@@ -160,6 +161,12 @@ func doMatching(patternComponents, nameComponents []string) (matched bool, err e
 				}
 			}
 			return false, nil
+		} else if patternComponents[patIdx] == "*" {
+			if nameComponents[nameIdx] == "" {
+				if nameIdx + 1 != nameLen {
+					return false, nil
+				}
+			}
 		} else {
 			// try matching components
 			matched, err = matchComponent(patternComponents[patIdx], nameComponents[nameIdx])
