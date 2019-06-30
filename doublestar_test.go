@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +22,10 @@ type MatchTest struct {
 var onWindows = runtime.GOOS == "windows"
 
 var matchTests = []MatchTest{
+	{[]string{"*"}, []string{""}, true, nil, false},
+	{[]string{"*"}, []string{"/"}, false, nil, false},
+	{[]string{"/*"}, []string{"/"}, true, nil, false},
+	{[]string{"/*"}, []string{"/debug/"}, false, nil, false},
 	{[]string{"abc"}, []string{"abc"}, true, nil, true},
 	{[]string{"*"}, []string{"abc"}, true, nil, true},
 	{[]string{"*c"}, []string{"abc"}, true, nil, true},
@@ -88,6 +93,8 @@ var matchTests = []MatchTest{
 	{[]string{"a", "**", "c"}, []string{"a", "b", "c"}, true, nil, true},
 	{[]string{"a", "**", "d"}, []string{"a", "b", "c", "d"}, true, nil, true},
 	{[]string{"a", "\\**"}, []string{"a", "b", "c"}, false, nil, !onWindows},
+	{[]string{"a", "", "b", "c"}, []string{"a", "b", "c"}, true, nil, true},
+	{[]string{"a", "b", "c"}, []string{"a", "b", "", "c"}, true, nil, true},
 	{[]string{"ab{c,d}"}, []string{"abc"}, true, nil, true},
 	{[]string{"ab{c,d,*}"}, []string{"abcde"}, true, nil, true},
 	{[]string{"ab{c,d}["}, []string{"abcd"}, false, ErrBadPattern, true},
@@ -116,9 +123,25 @@ func testMatchWith(t *testing.T, idx int, tt MatchTest) {
 	}()
 
 	// Match() always uses "/" as the separator
-	ok, err := Match(path.Join(tt.pattern...), path.Join(tt.testPath...))
+	pattern := tt.pattern[0]
+	testPath := tt.testPath[0]
+	if len(tt.pattern) > 1 {
+		pattern = path.Join(tt.pattern...)
+	}
+	if len(tt.testPath) > 1 {
+		testPath = path.Join(tt.testPath...)
+	}
+
+	ok, err := Match(pattern, testPath)
 	if ok != tt.shouldMatch || err != tt.expectedErr {
-		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+	}
+
+	if isStandardPattern(pattern) {
+		stdOk, stdErr := path.Match(pattern, testPath)
+		if ok != stdOk || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. Match(%#q, %#q) != path.Match(...). Got %v, %v want %v, %v", idx, pattern, testPath, ok, err, stdOk, stdErr)
+		}
 	}
 }
 
@@ -141,9 +164,18 @@ func testPathMatchWith(t *testing.T, idx int, tt MatchTest) {
 		}
 	}()
 
-	ok, err := PathMatch(filepath.Join(tt.pattern...), filepath.Join(tt.testPath...))
+	pattern := filepath.Join(tt.pattern...)
+	testPath := filepath.Join(tt.testPath...)
+	ok, err := PathMatch(pattern, testPath)
 	if ok != tt.shouldMatch || err != tt.expectedErr {
-		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+	}
+
+	if isStandardPattern(pattern) {
+		stdOk, stdErr := filepath.Match(pattern, testPath)
+		if ok != stdOk || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. PathMatch(%#q, %#q) != filepath.Match(...). Got %v, %v want %v, %v", idx, pattern, testPath, ok, err, stdOk, stdErr)
+		}
 	}
 }
 
@@ -175,14 +207,32 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, basepath string) {
 	matches, err := Glob(pattern)
 	if inSlice(testPath, matches) != tt.shouldMatch {
 		if tt.shouldMatch {
-			t.Errorf("#%v. Glob(%#q) = %#v - doesn't contain %v, but should", idx, tt.pattern, matches, tt.testPath)
+			t.Errorf("#%v. Glob(%#q) = %#v - doesn't contain %v, but should", idx, pattern, matches, tt.testPath)
 		} else {
-			t.Errorf("#%v. Glob(%#q) = %#v - contains %v, but shouldn't", idx, tt.pattern, matches, tt.testPath)
+			t.Errorf("#%v. Glob(%#q) = %#v - contains %v, but shouldn't", idx, pattern, matches, tt.testPath)
 		}
 	}
 	if err != tt.expectedErr {
-		t.Errorf("#%v. Glob(%#q) has error %v, but should be %v", idx, tt.pattern, err, tt.expectedErr)
+		t.Errorf("#%v. Glob(%#q) has error %v, but should be %v", idx, pattern, err, tt.expectedErr)
 	}
+
+	if isStandardPattern(pattern) {
+		stdMatches, stdErr := filepath.Glob(pattern)
+		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. Glob(%#q) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, pattern, matches, err, stdMatches, stdErr)
+		}
+	}
+}
+
+func isStandardPattern(pattern string) bool {
+	return !strings.Contains(pattern, "**") && indexRuneWithEscaping(pattern, '{') == -1
+}
+
+func compareErrors(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	return b != nil
 }
 
 func inSlice(s string, a []string) bool {
@@ -192,4 +242,29 @@ func inSlice(s string, a []string) bool {
 		}
 	}
 	return false
+}
+
+func compareSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	diff := make(map[string]int, len(a))
+
+	for _, x := range a {
+		diff[x]++
+	}
+
+	for _, y := range b {
+		if _, ok := diff[y]; !ok {
+			return false
+		}
+
+		diff[y]--
+		if diff[y] == 0 {
+			delete(diff, y)
+		}
+	}
+
+	return len(diff) == 0
 }
