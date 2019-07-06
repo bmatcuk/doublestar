@@ -3,6 +3,7 @@
 package doublestar
 
 import (
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -267,4 +268,71 @@ func compareSlices(a, b []string) bool {
 	}
 
 	return len(diff) == 0
+}
+
+func mkdirp(parts ...string) {
+	dirs := path.Join(parts...)
+	err := os.MkdirAll(dirs, 0755)
+	if err != nil {
+		log.Fatalf("Could not create test directories %v: %v\n", dirs, err)
+	}
+}
+
+func touch(parts ...string) {
+	filename := path.Join(parts...)
+	f, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Could not create test file %v: %v\n", filename, err)
+	}
+	f.Close()
+}
+
+func symlink(oldname, newname string) {
+	// since this will only run on non-windows, we can assume "/" as path separator
+	err := os.Symlink(oldname, newname)
+	if err != nil && !os.IsExist(err) {
+		log.Fatalf("Could not create symlink %v -> %v: %v\n", oldname, newname, err)
+	}
+}
+
+func TestMain(m *testing.M) {
+	// create the test directory
+	mkdirp("test", "a", "b", "c")
+	mkdirp("test", "a", "c")
+	mkdirp("test", "abc")
+	mkdirp("test", "axbxcxdxe", "xxx")
+	mkdirp("test", "axbxcxdxexxx")
+	mkdirp("test", "b")
+
+	// create test files
+	touch("test", "a", "abc")
+	touch("test", "a", "b", "c", "d")
+	touch("test", "a", "c", "b")
+	touch("test", "abc", "b")
+	touch("test", "abcd")
+	touch("test", "abcde")
+	touch("test", "abxbbxdbxebxczzx")
+	touch("test", "abxbbxdbxebxczzy")
+	touch("test", "axbxcxdxe", "f")
+	touch("test", "axbxcxdxe", "xxx", "f")
+	touch("test", "axbxcxdxexxx", "f")
+	touch("test", "axbxcxdxexxx", "fff")
+	touch("test", "a☺b")
+	touch("test", "b", "c")
+	touch("test", "c")
+	touch("test", "x")
+	touch("test", "xxx")
+	touch("test", "z")
+	touch("test", "α")
+
+	if !onWindows {
+		// these files/symlinks won't work on Windows
+		touch("test", "-")
+		touch("test", "]")
+		symlink("../axbxcxdxe/", "test/b/symlink-dir")
+		symlink("/tmp/nonexistant-file-20160902155705", "test/broken-symlink")
+		symlink("a/b", "test/working-symlink")
+	}
+
+	os.Exit(m.Run())
 }
