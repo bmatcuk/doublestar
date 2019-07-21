@@ -27,6 +27,7 @@ var matchTests = []MatchTest{
 	{[]string{"*"}, []string{"/"}, false, nil, false},
 	{[]string{"/*"}, []string{"/"}, true, nil, false},
 	{[]string{"/*"}, []string{"/debug/"}, false, nil, false},
+	{[]string{"/*"}, []string{"//"}, false, nil, false},
 	{[]string{"abc"}, []string{"abc"}, true, nil, true},
 	{[]string{"*"}, []string{"abc"}, true, nil, true},
 	{[]string{"*c"}, []string{"abc"}, true, nil, true},

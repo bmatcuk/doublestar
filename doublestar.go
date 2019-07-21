@@ -52,25 +52,6 @@ func splitPathOnSeparator(path string, separator rune) (ret []string) {
 		}
 	}
 
-	// An empty component in the beginning is significant because it indicates an
-	// absolute path, and an empty component at the end is significant because it
-	// indicates that the path ended on a path separator. However, empty
-	// components in the middle are insignificant; they probably indicate a typo
-	// or a path that was built programmatically without removing duplicate
-	// separators. We'll remove the inner empty components here...
-	shift := 0
-	for i := 1; i < idx-1; i++ {
-		if ret[i] == "" {
-			shift++
-		} else if shift > 0 {
-			ret[i-shift] = ret[i]
-		}
-	}
-	if shift > 0 {
-		ret[idx-1-shift] = ret[idx-1]
-		idx -= shift
-	}
-
 	return ret[:idx]
 }
 
