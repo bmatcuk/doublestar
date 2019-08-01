@@ -213,10 +213,20 @@ func Glob(pattern string) (matches []string, err error) {
 	// it will return an empty string.
 	volumeName := filepath.VolumeName(pattern)
 
+	// On Windows: VolumeName returns \\<server>\<first component> for \\ prefixed patterns.
+
 	// If the first pattern component is equal to the volume name, then the
 	// pattern is an absolute path.
-	if patternComponents[0] == volumeName {
-		return doGlob(fmt.Sprintf("%s%s", volumeName, string(os.PathSeparator)), patternComponents[1:], matches)
+	startComponentIndex := 1
+	isWindowsUNC := false
+
+	if strings.HasPrefix(pattern, "\\\\") {
+		startComponentIndex = 4
+		isWindowsUNC = true
+	}
+
+	if isWindowsUNC || patternComponents[0] == volumeName {
+		return doGlob(fmt.Sprintf("%s%s", volumeName, string(os.PathSeparator)), patternComponents[startComponentIndex:], matches)
 	}
 
 	// otherwise, it's a relative pattern
