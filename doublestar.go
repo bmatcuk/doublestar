@@ -315,6 +315,23 @@ func Glob(pattern string) (matches []string, err error) {
 		return nil, nil
 	}
 
+	// if the pattern starts with alternatives, we need to handle that here - the
+	// alternatives may be a mix of relative and absolute
+	if pattern[0] == '{' {
+		options, endOptions := splitAlternatives(pattern[1:])
+		if endOptions == -1 {
+			return nil, ErrBadPattern
+		}
+		for _, o := range options {
+			m, e := Glob(o + pattern[endOptions+1:])
+			if e != nil {
+				return nil, e
+			}
+			matches = append(matches, m...)
+		}
+		return matches, nil
+	}
+
 	// If the pattern is relative or absolute and we're on a non-Windows machine,
 	// volumeName will be an empty string. If it is absolute and we're on a
 	// Windows machine, volumeName will be a drive letter ("C:") for filesystem
