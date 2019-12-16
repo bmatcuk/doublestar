@@ -201,6 +201,10 @@ func TestGlob(t *testing.T) {
 			// test both relative paths and absolute paths
 			testGlobWith(t, idx, tt, "test")
 			testGlobWith(t, idx, tt, abspath)
+			volumeName := filepath.VolumeName(abspath)
+			if volumeName != "" && !strings.HasPrefix(volumeName, `\\`) {
+				testGlobWith(t, idx, tt, strings.TrimPrefix(abspath, volumeName))
+			}
 		}
 	}
 }
