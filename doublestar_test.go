@@ -180,7 +180,7 @@ func testPathMatchWith(t *testing.T, idx int, tt MatchTest) {
 		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
 	}
 
-	if isStandardPattern(pattern) {
+	if isStandardPattern(tt.pattern) {
 		stdOk, stdErr := filepath.Match(pattern, testPath)
 		if ok != stdOk || !compareErrors(err, stdErr) {
 			t.Errorf("#%v. PathMatch(%#q, %#q) != filepath.Match(...). Got %v, %v want %v, %v", idx, pattern, testPath, ok, err, stdOk, stdErr)
@@ -201,6 +201,10 @@ func TestGlob(t *testing.T) {
 			// test both relative paths and absolute paths
 			testGlobWith(t, idx, tt, "test")
 			testGlobWith(t, idx, tt, abspath)
+			volumeName := filepath.VolumeName(abspath)
+			if volumeName != "" && !strings.HasPrefix(volumeName, `\\`) {
+				testGlobWith(t, idx, tt, strings.TrimPrefix(abspath, volumeName))
+			}
 		}
 	}
 }
@@ -226,7 +230,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, basepath string) {
 		t.Errorf("#%v. Glob(%#q) has error %v, but should be %v", idx, pattern, err, tt.expectedErr)
 	}
 
-	if isStandardPattern(pattern) {
+	if isStandardPattern(tt.pattern) {
 		stdMatches, stdErr := filepath.Glob(pattern)
 		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
 			t.Errorf("#%v. Glob(%#q) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, pattern, matches, err, stdMatches, stdErr)
