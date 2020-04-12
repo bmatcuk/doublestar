@@ -31,6 +31,7 @@ var matchTests = []MatchTest{
 	{"abc", "abc", true, nil, true},
 	{"*", "abc", true, nil, true},
 	{"*c", "abc", true, nil, true},
+	{"*/", "a/", true, nil, false},
 	{"a*", "a", true, nil, true},
 	{"a*", "abc", true, nil, true},
 	{"a*", "ab/c", false, nil, true},
