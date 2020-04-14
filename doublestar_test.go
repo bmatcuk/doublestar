@@ -313,6 +313,26 @@ func symlink(oldname, newname string) {
 	}
 }
 
+func TestGlobSorted(t *testing.T) {
+	expected := []string{"a", "abc", "abcd", "abcde", "abxbbxdbxebxczzx", "abxbbxdbxebxczzy", "axbxcxdxe", "axbxcxdxexxx", "a☺b"}
+	matches, err := Glob(joinWithoutClean("test", "a*"))
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+		return
+	}
+
+	if len(matches) != len(expected) {
+		t.Errorf("Glob returned %#v; expected %#v", matches, expected)
+		return
+	}
+	for idx, match := range matches {
+		if match != joinWithoutClean("test", expected[idx]) {
+			t.Errorf("Glob returned %#v; expected %#v", matches, expected)
+			return
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
 	// create the test directory
 	mkdirp("test", "a", "b", "c")

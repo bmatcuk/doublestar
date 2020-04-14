@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -405,6 +406,8 @@ func doGlob(basedir, pattern string, matches []string) (m []string, e error) {
 	defer dir.Close()
 
 	files, _ := dir.Readdir(-1)
+	sort.Slice(files, func(i, j int) bool { return files[i].Name() < files[j].Name() })
+
 	slashIdx := indexRuneWithEscaping(pattern, '/')
 	lastComponent := slashIdx == -1
 	if lastComponent {
