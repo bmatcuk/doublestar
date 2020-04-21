@@ -633,9 +633,8 @@ func matchComponent(pattern, name string) ([]string, error) {
 		if zeroLength {
 			if slashIdx == -1 {
 				return []string{}, nil
-			} else {
-				return []string{pattern[slashIdx+1:]}, nil
 			}
+			return []string{pattern[slashIdx+1:]}, nil
 		}
 	}
 	return nil, nil
