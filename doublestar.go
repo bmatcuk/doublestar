@@ -403,7 +403,11 @@ func doGlob(basedir, pattern string, matches []string) (m []string, e error) {
 	if err != nil {
 		return
 	}
-	defer dir.Close()
+	defer func() {
+		if err := dir.Close(); e == nil {
+			e = err
+		}
+	}()
 
 	files, err := dir.Readdir(-1)
 	if err != nil {
