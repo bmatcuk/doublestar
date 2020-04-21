@@ -405,7 +405,10 @@ func doGlob(basedir, pattern string, matches []string) (m []string, e error) {
 	}
 	defer dir.Close()
 
-	files, _ := dir.Readdir(-1)
+	files, err := dir.Readdir(-1)
+	if err != nil {
+		return nil, err
+	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Name() < files[j].Name() })
 
 	slashIdx := indexRuneWithEscaping(pattern, '/')
