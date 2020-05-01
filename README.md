@@ -4,7 +4,6 @@ Path pattern matching and globbing supporting `doublestar` (`**`) patterns.
 
 ![Release](https://img.shields.io/github/release/bmatcuk/doublestar.svg?branch=master)
 [![Build Status](https://travis-ci.org/bmatcuk/doublestar.svg?branch=master)](https://travis-ci.org/bmatcuk/doublestar)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b5ea01ba45664afd90f36cbc5f346a89)](https://www.codacy.com/manual/edumco/doublestar?utm_source=github.com&utm_medium=referral&utm_content=edumco/doublestar&utm_campaign=Badge_Grade)
 [![codecov.io](https://img.shields.io/codecov/c/github/bmatcuk/doublestar.svg?branch=master)](https://codecov.io/github/bmatcuk/doublestar?branch=master)
 
 ## About
