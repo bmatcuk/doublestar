@@ -543,6 +543,7 @@ func matchComponent(pattern, name string) ([]string, error) {
 				if m, e := matchComponent(pattern[patIdx:], name[nameIdx:]); m != nil || e != nil {
 					return m, e
 				}
+				_, nameAdj = utf8.DecodeRuneInString(name[nameIdx:])
 			}
 			return nil, nil
 		} else if patRune == '[' {

@@ -120,6 +120,8 @@ var matchTests = []MatchTest{
 	{"abc/**", "abc/b", true, nil, true},
 	{"**/abc", "abc", true, nil, true},
 	{"abc**", "abc/b", false, nil, true},
+	{"**/*.txt", "abc/【test】.txt", true, nil, true},
+	{"**/【*", "abc/【test】.txt", true, nil, true},
 	{"broken-symlink", "broken-symlink", true, nil, !onWindows},
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, !onWindows},
 	{"working-sym*/*", "working-symlink/c", true, nil, !onWindows},
@@ -362,6 +364,7 @@ func TestMain(m *testing.M) {
 	touch("test", "xxx")
 	touch("test", "z")
 	touch("test", "α")
+	touch("test", "abc", "【test】.txt")
 
 	if !onWindows {
 		// these files/symlinks won't work on Windows
