@@ -284,11 +284,9 @@ func doMatching(pattern string, nameComponents []string) (matched bool, err erro
 		return true, nil
 	}
 	if patternLen == 0 {
-		if nameLen == 1 && nameComponents[0] == "" {
-			return true, nil
-		} else if nameLen == 0 {
-			return false, nil
-		}
+		return nameLen == 1 && nameComponents[0] == "", nil
+	} else if nameLen == 0 {
+		return pattern == "**" || pattern == "*", nil
 	}
 
 	slashIdx := indexRuneWithEscaping(pattern, '/')
