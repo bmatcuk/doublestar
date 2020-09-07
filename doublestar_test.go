@@ -16,6 +16,7 @@ type MatchTest struct {
 	pattern, testPath string // a pattern and path to test the pattern on
 	shouldMatch       bool   // true if the pattern should match the path
 	expectedErr       error  // an expected error
+	isStandard        bool   // pattern doesn't use any doublestar features
 	testOnDisk        bool   // true: test pattern against files in "test" directory
 }
 
@@ -23,109 +24,110 @@ type MatchTest struct {
 var onWindows = runtime.GOOS == "windows"
 
 var matchTests = []MatchTest{
-	{"*", "", true, nil, false},
-	{"*", "/", false, nil, false},
-	{"/*", "/", true, nil, false},
-	{"/*", "/debug/", false, nil, false},
-	{"/*", "//", false, nil, false},
-	{"abc", "abc", true, nil, true},
-	{"*", "abc", true, nil, true},
-	{"*c", "abc", true, nil, true},
-	{"*/", "a/", true, nil, false},
-	{"a*", "a", true, nil, true},
-	{"a*", "abc", true, nil, true},
-	{"a*", "ab/c", false, nil, true},
-	{"a*/b", "abc/b", true, nil, true},
-	{"a*/b", "a/c/b", false, nil, true},
-	{"a*b*c*d*e*", "axbxcxdxe", true, nil, true},
-	{"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil, true},
-	{"a*b*c*d*e*/f", "axbxcxdxexxx/f", true, nil, true},
-	{"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", false, nil, true},
-	{"a*b*c*d*e*/f", "axbxcxdxexxx/fff", false, nil, true},
-	{"a*b?c*x", "abxbbxdbxebxczzx", true, nil, true},
-	{"a*b?c*x", "abxbbxdbxebxczzy", false, nil, true},
-	{"ab[c]", "abc", true, nil, true},
-	{"ab[b-d]", "abc", true, nil, true},
-	{"ab[e-g]", "abc", false, nil, true},
-	{"ab[^c]", "abc", false, nil, true},
-	{"ab[^b-d]", "abc", false, nil, true},
-	{"ab[^e-g]", "abc", true, nil, true},
-	{"a\\*b", "ab", false, nil, true},
-	{"a?b", "a☺b", true, nil, true},
-	{"a[^a]b", "a☺b", true, nil, true},
-	{"a???b", "a☺b", false, nil, true},
-	{"a[^a][^a][^a]b", "a☺b", false, nil, true},
-	{"[a-ζ]*", "α", true, nil, true},
-	{"*[a-ζ]", "A", false, nil, true},
-	{"a?b", "a/b", false, nil, true},
-	{"a*b", "a/b", false, nil, true},
-	{"[\\]a]", "]", true, nil, !onWindows},
-	{"[\\-]", "-", true, nil, !onWindows},
-	{"[x\\-]", "x", true, nil, !onWindows},
-	{"[x\\-]", "-", true, nil, !onWindows},
-	{"[x\\-]", "z", false, nil, !onWindows},
-	{"[\\-x]", "x", true, nil, !onWindows},
-	{"[\\-x]", "-", true, nil, !onWindows},
-	{"[\\-x]", "a", false, nil, !onWindows},
-	{"[]a]", "]", false, ErrBadPattern, true},
-	{"[-]", "-", false, ErrBadPattern, true},
-	{"[x-]", "x", false, ErrBadPattern, true},
-	{"[x-]", "-", false, ErrBadPattern, true},
-	{"[x-]", "z", false, ErrBadPattern, true},
-	{"[-x]", "x", false, ErrBadPattern, true},
-	{"[-x]", "-", false, ErrBadPattern, true},
-	{"[-x]", "a", false, ErrBadPattern, true},
-	{"\\", "a", false, ErrBadPattern, !onWindows},
-	{"[a-b-c]", "a", false, ErrBadPattern, true},
-	{"[", "a", false, ErrBadPattern, true},
-	{"[^", "a", false, ErrBadPattern, true},
-	{"[^bc", "a", false, ErrBadPattern, true},
-	{"a[", "a", false, nil, false},
-	{"a[", "ab", false, ErrBadPattern, true},
-	{"*x", "xxx", true, nil, true},
-	{"[abc]", "b", true, nil, true},
-	{"a/**", "a", false, nil, true},
-	{"a/**", "a/b", true, nil, true},
-	{"a/**", "a/b/c", true, nil, true},
-	{"**/c", "c", true, nil, true},
-	{"**/c", "b/c", true, nil, true},
-	{"**/c", "a/b/c", true, nil, true},
-	{"**/c", "a/b", false, nil, true},
-	{"**/c", "abcd", false, nil, true},
-	{"**/c", "a/abc", false, nil, true},
-	{"a/**/b", "a/b", true, nil, true},
-	{"a/**/c", "a/b/c", true, nil, true},
-	{"a/**/d", "a/b/c/d", true, nil, true},
-	{"a/\\**", "a/b/c", false, nil, !onWindows},
+	{"*", "", true, nil, true, false},
+	{"*", "/", false, nil, true, false},
+	{"/*", "/", true, nil, true, false},
+	{"/*", "/debug/", false, nil, true, false},
+	{"/*", "//", false, nil, true, false},
+	{"abc", "abc", true, nil, true, true},
+	{"*", "abc", true, nil, true, true},
+	{"*c", "abc", true, nil, true, true},
+	{"*/", "a/", true, nil, true, false},
+	{"a*", "a", true, nil, true, true},
+	{"a*", "abc", true, nil, true, true},
+	{"a*", "ab/c", false, nil, true, true},
+	{"a*/b", "abc/b", true, nil, true, true},
+	{"a*/b", "a/c/b", false, nil, true, true},
+	{"a*b*c*d*e*", "axbxcxdxe", true, nil, true, true},
+	{"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil, true, true},
+	{"a*b*c*d*e*/f", "axbxcxdxexxx/f", true, nil, true, true},
+	{"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", false, nil, true, true},
+	{"a*b*c*d*e*/f", "axbxcxdxexxx/fff", false, nil, true, true},
+	{"a*b?c*x", "abxbbxdbxebxczzx", true, nil, true, true},
+	{"a*b?c*x", "abxbbxdbxebxczzy", false, nil, true, true},
+	{"ab[c]", "abc", true, nil, true, true},
+	{"ab[b-d]", "abc", true, nil, true, true},
+	{"ab[e-g]", "abc", false, nil, true, true},
+	{"ab[^c]", "abc", false, nil, true, true},
+	{"ab[^b-d]", "abc", false, nil, true, true},
+	{"ab[^e-g]", "abc", true, nil, true, true},
+	{"a\\*b", "ab", false, nil, true, true},
+	{"a?b", "a☺b", true, nil, true, true},
+	{"a[^a]b", "a☺b", true, nil, true, true},
+	{"a???b", "a☺b", false, nil, true, true},
+	{"a[^a][^a][^a]b", "a☺b", false, nil, true, true},
+	{"[a-ζ]*", "α", true, nil, true, true},
+	{"*[a-ζ]", "A", false, nil, true, true},
+	{"a?b", "a/b", false, nil, true, true},
+	{"a*b", "a/b", false, nil, true, true},
+	{"[\\]a]", "]", true, nil, true, !onWindows},
+	{"[\\-]", "-", true, nil, true, !onWindows},
+	{"[x\\-]", "x", true, nil, true, !onWindows},
+	{"[x\\-]", "-", true, nil, true, !onWindows},
+	{"[x\\-]", "z", false, nil, true, !onWindows},
+	{"[\\-x]", "x", true, nil, true, !onWindows},
+	{"[\\-x]", "-", true, nil, true, !onWindows},
+	{"[\\-x]", "a", false, nil, true, !onWindows},
+	{"[]a]", "]", false, ErrBadPattern, true, true},
+	{"[-]", "-", false, ErrBadPattern, true, true},
+	{"[x-]", "x", false, ErrBadPattern, true, true},
+	{"[x-]", "-", false, ErrBadPattern, true, true},
+	{"[x-]", "z", false, ErrBadPattern, true, true},
+	{"[-x]", "x", false, ErrBadPattern, true, true},
+	{"[-x]", "-", false, ErrBadPattern, true, true},
+	{"[-x]", "a", false, ErrBadPattern, true, true},
+	{"\\", "a", false, ErrBadPattern, true, !onWindows},
+	{"[a-b-c]", "a", false, ErrBadPattern, true, true},
+	{"[", "a", false, ErrBadPattern, true, true},
+	{"[^", "a", false, ErrBadPattern, true, true},
+	{"[^bc", "a", false, ErrBadPattern, true, true},
+	{"a[", "a", false, nil, true, false},
+	{"a[", "ab", false, ErrBadPattern, true, true},
+	{"*x", "xxx", true, nil, true, true},
+	{"[abc]", "b", true, nil, true, true},
+	{"**", "", true, nil, false, false},
+	{"a/**", "a", false, nil, false, true},
+	{"a/**", "a/b", true, nil, false, true},
+	{"a/**", "a/b/c", true, nil, false, true},
+	{"**/c", "c", true, nil, false, true},
+	{"**/c", "b/c", true, nil, false, true},
+	{"**/c", "a/b/c", true, nil, false, true},
+	{"**/c", "a/b", false, nil, false, true},
+	{"**/c", "abcd", false, nil, false, true},
+	{"**/c", "a/abc", false, nil, false, true},
+	{"a/**/b", "a/b", true, nil, false, true},
+	{"a/**/c", "a/b/c", true, nil, false, true},
+	{"a/**/d", "a/b/c/d", true, nil, false, true},
+	{"a/\\**", "a/b/c", false, nil, false, !onWindows},
 	// this is an odd case: filepath.Glob() will return results
-	{"a//b/c", "a/b/c", false, nil, false},
-	{"a/b/c", "a/b//c", false, nil, true},
+	{"a//b/c", "a/b/c", false, nil, true, false},
+	{"a/b/c", "a/b//c", false, nil, true, true},
 	// also odd: Glob + filepath.Glob return results
-	{"a/", "a", false, nil, false},
-	{"ab{c,d}", "abc", true, nil, true},
-	{"ab{c,d,*}", "abcde", true, nil, true},
-	{"ab{c,d}[", "abcd", false, ErrBadPattern, true},
-	{"a{,bc}", "a", true, nil, true},
-	{"a{,bc}", "abc", true, nil, true},
-	{"a/{b/c,c/b}", "a/b/c", true, nil, true},
-	{"a/{b/c,c/b}", "a/c/b", true, nil, true},
-	{"{a/{b,c},abc}", "a/b", true, nil, true},
-	{"{a/{b,c},abc}", "a/c", true, nil, true},
-	{"{a/{b,c},abc}", "abc", true, nil, true},
-	{"{a/{b,c},abc}", "a/b/c", false, nil, true},
-	{"{a/ab*}", "a/abc", true, nil, true},
-	{"{a/*}", "a/b", true, nil, true},
-	{"{a/abc}", "a/abc", true, nil, true},
-	{"{a/b,a/c}", "a/c", true, nil, true},
-	{"abc/**", "abc/b", true, nil, true},
-	{"**/abc", "abc", true, nil, true},
-	{"abc**", "abc/b", false, nil, true},
-	{"**/*.txt", "abc/【test】.txt", true, nil, true},
-	{"**/【*", "abc/【test】.txt", true, nil, true},
-	{"broken-symlink", "broken-symlink", true, nil, !onWindows},
-	{"working-symlink/c/*", "working-symlink/c/d", true, nil, !onWindows},
-	{"working-sym*/*", "working-symlink/c", true, nil, !onWindows},
-	{"b/**/f", "b/symlink-dir/f", true, nil, !onWindows},
+	{"a/", "a", false, nil, true, false},
+	{"ab{c,d}", "abc", true, nil, false, true},
+	{"ab{c,d,*}", "abcde", true, nil, false, true},
+	{"ab{c,d}[", "abcd", false, ErrBadPattern, false, true},
+	{"a{,bc}", "a", true, nil, false, true},
+	{"a{,bc}", "abc", true, nil, false, true},
+	{"a/{b/c,c/b}", "a/b/c", true, nil, false, true},
+	{"a/{b/c,c/b}", "a/c/b", true, nil, false, true},
+	{"{a/{b,c},abc}", "a/b", true, nil, false, true},
+	{"{a/{b,c},abc}", "a/c", true, nil, false, true},
+	{"{a/{b,c},abc}", "abc", true, nil, false, true},
+	{"{a/{b,c},abc}", "a/b/c", false, nil, false, true},
+	{"{a/ab*}", "a/abc", true, nil, false, true},
+	{"{a/*}", "a/b", true, nil, false, true},
+	{"{a/abc}", "a/abc", true, nil, false, true},
+	{"{a/b,a/c}", "a/c", true, nil, false, true},
+	{"abc/**", "abc/b", true, nil, false, true},
+	{"**/abc", "abc", true, nil, false, true},
+	{"abc**", "abc/b", false, nil, false, true},
+	{"**/*.txt", "abc/【test】.txt", true, nil, false, true},
+	{"**/【*", "abc/【test】.txt", true, nil, false, true},
+	{"broken-symlink", "broken-symlink", true, nil, true, !onWindows},
+	{"working-symlink/c/*", "working-symlink/c/d", true, nil, true, !onWindows},
+	{"working-sym*/*", "working-symlink/c", true, nil, true, !onWindows},
+	{"b/**/f", "b/symlink-dir/f", true, nil, false, !onWindows},
 }
 
 func TestMatch(t *testing.T) {
@@ -149,10 +151,32 @@ func testMatchWith(t *testing.T, idx int, tt MatchTest) {
 		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, tt.shouldMatch, tt.expectedErr)
 	}
 
-	if isStandardPattern(tt.pattern) {
+	if tt.isStandard {
 		stdOk, stdErr := path.Match(tt.pattern, tt.testPath)
 		if ok != stdOk || !compareErrors(err, stdErr) {
 			t.Errorf("#%v. Match(%#q, %#q) != path.Match(...). Got %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, stdOk, stdErr)
+		}
+	}
+}
+
+func BenchmarkMatch(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range matchTests {
+			if tt.isStandard {
+				Match(tt.pattern, tt.testPath)
+			}
+		}
+	}
+}
+
+func BenchmarkGoMatch(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range matchTests {
+			if tt.isStandard {
+				path.Match(tt.pattern, tt.testPath)
+			}
 		}
 	}
 }
@@ -183,10 +207,36 @@ func testPathMatchWith(t *testing.T, idx int, tt MatchTest) {
 		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
 	}
 
-	if isStandardPattern(tt.pattern) {
+	if tt.isStandard {
 		stdOk, stdErr := filepath.Match(pattern, testPath)
 		if ok != stdOk || !compareErrors(err, stdErr) {
 			t.Errorf("#%v. PathMatch(%#q, %#q) != filepath.Match(...). Got %v, %v want %v, %v", idx, pattern, testPath, ok, err, stdOk, stdErr)
+		}
+	}
+}
+
+func BenchmarkPathMatch(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range matchTests {
+			if tt.isStandard && tt.testOnDisk {
+				pattern := filepath.FromSlash(tt.pattern)
+				testPath := filepath.FromSlash(tt.testPath)
+				PathMatch(pattern, testPath)
+			}
+		}
+	}
+}
+
+func BenchmarkGoPathMatch(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range matchTests {
+			if tt.isStandard && tt.testOnDisk {
+				pattern := filepath.FromSlash(tt.pattern)
+				testPath := filepath.FromSlash(tt.testPath)
+				filepath.Match(pattern, testPath)
+			}
 		}
 	}
 }
@@ -199,14 +249,20 @@ func TestGlob(t *testing.T) {
 	}
 
 	abspath = filepath.Join(abspath, "test")
+
+	abspathWithoutVolume := ""
+	volumeName := filepath.VolumeName(abspath)
+	if volumeName != "" && !strings.HasPrefix(volumeName, `\\`) {
+		abspathWithoutVolume = strings.TrimPrefix(abspath, volumeName)
+	}
+
 	for idx, tt := range matchTests {
 		if tt.testOnDisk {
 			// test both relative paths and absolute paths
 			testGlobWith(t, idx, tt, "test")
 			testGlobWith(t, idx, tt, abspath)
-			volumeName := filepath.VolumeName(abspath)
-			if volumeName != "" && !strings.HasPrefix(volumeName, `\\`) {
-				testGlobWith(t, idx, tt, strings.TrimPrefix(abspath, volumeName))
+			if abspathWithoutVolume != "" {
+				testGlobWith(t, idx, tt, abspathWithoutVolume)
 			}
 		}
 	}
@@ -233,7 +289,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, basepath string) {
 		t.Errorf("#%v. Glob(%#q) has error %v, but should be %v", idx, pattern, err, tt.expectedErr)
 	}
 
-	if isStandardPattern(tt.pattern) {
+	if tt.isStandard {
 		stdMatches, stdErr := filepath.Glob(pattern)
 		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
 			t.Errorf("#%v. Glob(%#q) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, pattern, matches, err, stdMatches, stdErr)
@@ -241,12 +297,32 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, basepath string) {
 	}
 }
 
-func joinWithoutClean(elem ...string) string {
-	return strings.Join(elem, string(os.PathSeparator))
+func BenchmarkGlob(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range matchTests {
+			if tt.isStandard && tt.testOnDisk {
+				pattern := joinWithoutClean("test", filepath.FromSlash(tt.pattern))
+				Glob(pattern)
+			}
+		}
+	}
 }
 
-func isStandardPattern(pattern string) bool {
-	return !strings.Contains(pattern, "**") && indexRuneWithEscaping(pattern, '{') == -1
+func BenchmarkGoGlob(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tt := range matchTests {
+			if tt.isStandard && tt.testOnDisk {
+				pattern := joinWithoutClean("test", filepath.FromSlash(tt.pattern))
+				filepath.Glob(pattern)
+			}
+		}
+	}
+}
+
+func joinWithoutClean(elem ...string) string {
+	return strings.Join(elem, string(os.PathSeparator))
 }
 
 func compareErrors(a, b error) bool {
