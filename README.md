@@ -2,7 +2,7 @@
 
 Path pattern matching and globbing supporting `doublestar` (`**`) patterns.
 
-![Release](https://img.shields.io/github/release/bmatcuk/doublestar.svg?branch=master)
+[![Release](https://img.shields.io/github/release/bmatcuk/doublestar.svg?branch=master)](https://github.com/bmatcuk/doublestar/releases)
 [![Build Status](https://travis-ci.org/bmatcuk/doublestar.svg?branch=master)](https://travis-ci.org/bmatcuk/doublestar)
 [![codecov.io](https://img.shields.io/codecov/c/github/bmatcuk/doublestar.svg?branch=master)](https://codecov.io/github/bmatcuk/doublestar?branch=master)
 
