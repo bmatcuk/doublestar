@@ -8,7 +8,9 @@ go:
 os:
   - linux
   - windows
-
+arch:
+  - amd64
+  - ppc64le
 before_install:
   - go get -t -v ./...
 
