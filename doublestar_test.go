@@ -12,6 +12,10 @@ import (
 	"testing"
 )
 
+// This var helps benchmarking by avoiding compiler optimizations. For more info,
+// see https://dave.cheney.net/2013/06/30/how-to-write-benchmarks-in-go.
+var result []string
+
 type MatchTest struct {
 	pattern, testPath string // a pattern and path to test the pattern on
 	shouldMatch       bool   // true if the pattern should match the path
@@ -212,6 +216,25 @@ func TestGlob(t *testing.T) {
 	}
 }
 
+func BenchmarkGlob(b *testing.B) {
+	var r []string
+	for n := 0; n < b.N; n++ {
+		wd, err := os.Getwd()
+		if err != nil {
+			b.Fatalf("Error getting current working directory: %v", err)
+			return
+		}
+
+		testPath := filepath.Join(wd, "test")
+		for idx, tt := range matchTests {
+			if tt.testOnDisk {
+				benchmarkGlobWith(b, idx, tt, testPath)
+			}
+		}
+	}
+	result = r
+}
+
 func testGlobWith(t *testing.T, idx int, tt MatchTest, basepath string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -239,6 +262,24 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, basepath string) {
 			t.Errorf("#%v. Glob(%#q) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, pattern, matches, err, stdMatches, stdErr)
 		}
 	}
+}
+
+func benchmarkGlobWith(b *testing.B, idx int, tt MatchTest, basePath string) {
+	defer func() {
+		if r := recover(); r != nil {
+			b.Errorf("#%v. Glob(%#q) panicked: %#v", idx, tt.pattern, r)
+		}
+	}()
+
+	pattern := joinWithoutClean(basePath, filepath.FromSlash(tt.pattern))
+
+	b.Run(tt.pattern, func(b *testing.B) {
+		var r []string
+		for n := 0; n < b.N; n++ {
+			r, _ = Glob(pattern)
+		}
+		result = r
+	})
 }
 
 func joinWithoutClean(elem ...string) string {
