@@ -416,6 +416,7 @@ func doGlob(vos OS, basedir, pattern string, matches []string) (m []string, e er
 	}
 
 	// otherwise, we need to check each item in the directory...
+
 	// first, if basedir is a symlink, follow it...
 	if (fi.Mode() & os.ModeSymlink) != 0 {
 		fi, err = vos.Stat(basedir)
@@ -429,21 +430,11 @@ func doGlob(vos OS, basedir, pattern string, matches []string) (m []string, e er
 		return
 	}
 
-	// read directory
-	dir, err := vos.Open(basedir)
+	files, err := filesInDir(vos, basedir)
 	if err != nil {
 		return
 	}
-	defer func() {
-		if err := dir.Close(); e == nil {
-			e = err
-		}
-	}()
 
-	files, err := dir.Readdir(-1)
-	if err != nil {
-		return
-	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Name() < files[j].Name() })
 
 	slashIdx := indexRuneWithEscaping(pattern, '/')
@@ -497,6 +488,25 @@ func doGlob(vos OS, basedir, pattern string, matches []string) (m []string, e er
 			}
 		}
 	}
+	return
+}
+
+func filesInDir(vos OS, dirPath string) (files []os.FileInfo, e error) {
+	dir, err := vos.Open(dirPath)
+	if err != nil {
+		return nil, nil
+	}
+	defer func() {
+		if err := dir.Close(); e == nil {
+			e = err
+		}
+	}()
+
+	files, err = dir.Readdir(-1)
+	if err != nil {
+		return nil, nil
+	}
+
 	return
 }
 
