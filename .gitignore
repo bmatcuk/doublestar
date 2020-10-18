@@ -30,3 +30,9 @@ _testmain.go
 
 # test directory
 test/
+
+# test output
+coverage.txt
+
+# GoLand files
+.idea
