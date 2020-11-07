@@ -107,6 +107,10 @@ Special Terms | Meaning
 
 Any character with a special meaning can be escaped with a backslash (`\`).
 
+A mid-pattern doublestar (`**`) behaves like bash's globstar option: a pattern
+such as `path/to/**.txt` would return the same results as `path/to/*.txt`. The
+pattern you're looking for is `path/to/**/*.txt`.
+
 #### Character Classes
 
 Character classes support the following:
