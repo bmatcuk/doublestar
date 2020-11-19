@@ -359,7 +359,7 @@ func GlobOS(vos OS, pattern string) (matches []string, err error) {
 			return nil, ErrBadPattern
 		}
 		for _, o := range options {
-			m, e := Glob(o + pattern[endOptions+1:])
+			m, e := GlobOS(vos, o+pattern[endOptions+1:])
 			if e != nil {
 				return nil, e
 			}
