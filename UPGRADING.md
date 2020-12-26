@@ -1,3 +1,11 @@
+# Upgrading from v2 to v3
+
+v3 introduced using `!` to negate character classes, in addition to `^`. If any
+of your patterns include a character class that starts with an exclamation mark
+(ie, `[!...]`), you'll need to update the pattern to escape or move the
+exclamation mark. Note that, like the caret (`^`), it only negates the
+character class if it is the first character in the character class.
+
 # Upgrading from v1 to v2
 
 The change from v1 to v2 was fairly minor: the return type of the `Open` method

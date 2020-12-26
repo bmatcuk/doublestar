@@ -1,3 +1,3 @@
-module github.com/bmatcuk/doublestar/v2
+module github.com/bmatcuk/doublestar/v3
 
 go 1.12

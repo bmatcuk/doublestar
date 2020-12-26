@@ -54,6 +54,7 @@ var matchTests = []MatchTest{
 	{"a\\*b", "ab", false, nil, true, true},
 	{"a?b", "a☺b", true, nil, true, true},
 	{"a[^a]b", "a☺b", true, nil, true, true},
+	{"a[!a]b", "a☺b", true, nil, false, true},
 	{"a???b", "a☺b", false, nil, true, true},
 	{"a[^a][^a][^a]b", "a☺b", false, nil, true, true},
 	{"[a-ζ]*", "α", true, nil, true, true},

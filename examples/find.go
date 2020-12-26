@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bmatcuk/doublestar/v2"
+	"github.com/bmatcuk/doublestar/v3"
 )
 
 // To run:

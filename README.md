@@ -9,7 +9,7 @@ Path pattern matching and globbing supporting `doublestar` (`**`) patterns.
 
 ## About
 
-#### [Updating from v1 to v2?](UPGRADING.md)
+#### [Upgrading to v2? To v3?](UPGRADING.md)
 
 **doublestar** is a [golang](http://golang.org/) implementation of path pattern
 matching and globbing with support for "doublestar" (aka globstar: `**`)

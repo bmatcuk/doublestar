@@ -163,7 +163,7 @@ func isZeroLengthPattern(pattern string) (ret bool, err error) {
 //    '**'        matches any sequence of characters, including
 //                path separators.
 //    '?'         matches any single non-path-separator character
-//    '[' [ '^' ] { character-range } ']'
+//    '[' [ '^' '!' ] { character-range } ']'
 //          character class (must be non-empty)
 //    '{' { term } [ ',' { term } ... ] '}'
 //    c           matches character c (c != '*', '?', '\\', '[')
@@ -515,7 +515,8 @@ func matchComponent(pattern, name string) ([]string, error) {
 			if classRunesLen > 0 {
 				classIdx := 0
 				matchClass := false
-				if classRunes[0] == '^' {
+				negate := classRunes[0] == '^' || classRunes[0] == '!'
+				if negate {
 					classIdx++
 				}
 				for classIdx < classRunesLen {
@@ -556,7 +557,7 @@ func matchComponent(pattern, name string) ([]string, error) {
 						matchClass = true
 					}
 				}
-				if matchClass == (classRunes[0] == '^') {
+				if matchClass == negate {
 					return nil, nil
 				}
 			} else {
