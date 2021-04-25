@@ -61,7 +61,7 @@ func Match(pattern, name string) (bool, error) {
 // `pattern` and `name`, and then use the Match() function instead.
 //
 func PathMatch(pattern, name string) (bool, error) {
-	return matchWithSeparator(filepath.ToSlash(pattern), name, filepath.Separator, true)
+	return matchWithSeparator(pattern, name, filepath.Separator, true)
 }
 
 func matchWithSeparator(pattern, name string, separator rune, validate bool) (matched bool, err error) {
@@ -147,7 +147,7 @@ MATCH:
 
 					// match a range
 					if last < utf8.MaxRune && patRune == '-' && patIdx < patLen && pattern[patIdx] != ']' {
-						if separator != '\\' && pattern[patIdx] == '\\' {
+						if pattern[patIdx] == '\\' {
 							// next character is escaped
 							patIdx++
 						}
@@ -165,7 +165,7 @@ MATCH:
 					}
 
 					// not a range - check if the next rune is escaped
-					if separator != '\\' && patRune == '\\' {
+					if patRune == '\\' {
 						patRune, patRuneLen = utf8.DecodeRuneInString(pattern[patIdx:])
 						patIdx += patRuneLen
 					}
@@ -189,7 +189,7 @@ MATCH:
 					break
 				}
 
-				closingIdx := indexUnescapedByte(pattern[patIdx:], ']', separator != '\\')
+				closingIdx := indexUnescapedByte(pattern[patIdx:], ']', true)
 				if closingIdx == -1 {
 					// no closing `]`
 					return false, ErrBadPattern
@@ -276,7 +276,7 @@ MATCH:
 			}
 		}
 
-		if validate && patIdx < patLen && !ValidatePattern(pattern[patIdx:]) {
+		if validate && patIdx < patLen && !doValidatePattern(pattern[patIdx:], separator) {
 			return false, ErrBadPattern
 		}
 		return false, nil
@@ -327,7 +327,7 @@ func isZeroLengthPattern(pattern string, separator rune) (ret bool, err error) {
 	}
 
 	// no luck - validate the rest of the pattern
-	if !ValidatePattern(pattern) {
+	if !doValidatePattern(pattern, separator) {
 		return false, ErrBadPattern
 	}
 	return false, nil
