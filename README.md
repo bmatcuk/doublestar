@@ -111,6 +111,12 @@ separator even if that's not correct for your OS (like Windows). If you aren't
 sure if that's the case, you can use `filepath.ToSlash()` on your pattern
 before calling `Glob()`.
 
+Like `io/fs.Glob()`, patterns containing `/./`, `/../`, or starting with `/`
+will return no results and no errors. This seems to be a [conscious
+decision](https://github.com/golang/go/issues/44092#issuecomment-774132549),
+even if counter-intuitive. You can use [SplitPattern] to divide a pattern into
+a base path (to initialize an `FS` object) and pattern.
+
 ### GlobWalk
 
 ```go
@@ -120,8 +126,10 @@ func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc) error
 ```
 
 GlobWalk calls the callback function `fn` for every file matching pattern.  The
-syntax of pattern is the same as in Match(). The pattern may describe
-hierarchical names such as usr/*/bin/ed.
+syntax of pattern is the same as in Match() and the behavior is the same as
+Glob(), with regard to limitations (such as patterns containing `/./`, `/../`,
+or starting with `/`). The pattern may describe hierarchical names such as
+usr/*/bin/ed.
 
 GlobWalk may have a small performance benefit over Glob if you do not need a
 slice of matches because it can avoid allocating memory for the matches.
@@ -262,6 +270,7 @@ traverse your filesystem.
 
 [MIT License](LICENSE)
 
+[SplitPattern]: #splitpattern
 [doublestar]: https://github.com/bmatcuk/doublestar
 [golang]: http://golang.org/
 [io/fs]: https://golang.org/pkg/io/fs/

@@ -10,8 +10,10 @@ import (
 type GlobWalkFunc func(path string, d fs.DirEntry) error
 
 // GlobWalk calls the callback function `fn` for every file matching pattern.
-// The syntax of pattern is the same as in Match(). The pattern may describe
-// hierarchical names such as usr/*/bin/ed.
+// The syntax of pattern is the same as in Match() and the behavior is the same
+// as Glob(), with regard to limitations (such as patterns containing `/./`,
+// `/../`, or starting with `/`). The pattern may describe hierarchical names
+// such as usr/*/bin/ed.
 //
 // GlobWalk may have a small performance benefit over Glob if you do not need a
 // slice of matches because it can avoid allocating memory for the matches.
