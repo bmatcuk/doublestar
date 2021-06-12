@@ -110,6 +110,7 @@ var matchTests = []MatchTest{
 	{"a/**/c", "a/b/c", true, nil, false, true, 2, 2},
 	{"a/**/d", "a/b/c/d", true, nil, false, true, 1, 1},
 	{"a/\\**", "a/b/c", false, nil, false, !onWindows, 0, 0},
+	{"a/\\[*\\]", "a/bc", false, nil, true, !onWindows, 0, 0},
 	// this is an odd case: filepath.Glob() will return results
 	{"a//b/c", "a/b/c", false, nil, true, false, 0, 0},
 	{"a/b/c", "a/b//c", false, nil, true, true, 1, 1},

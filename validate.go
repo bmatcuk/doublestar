@@ -52,7 +52,7 @@ VALIDATE:
 			}
 
 			for ; i < l; i++ {
-				if s[i] == '\\' {
+				if separator != '\\' && s[i] == '\\' {
 					i++
 				} else if s[i] == ']' {
 					// looks good

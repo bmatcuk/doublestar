@@ -239,6 +239,11 @@ MATCH:
 				patRune, patRuneLen := utf8.DecodeRuneInString(pattern[patIdx:])
 				nameRune, nameRuneLen := utf8.DecodeRuneInString(name[nameIdx:])
 				if patRune != nameRune {
+					if separator != '\\' && patIdx > 0 && pattern[patIdx-1] == '\\' {
+						// if this rune was meant to be escaped, we need to move patIdx
+						// back to the backslash before backtracking or validating below
+						patIdx--
+					}
 					break
 				}
 
