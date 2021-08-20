@@ -378,7 +378,7 @@ func doGlob(vos OS, basedir, pattern string, matches []string) (m []string, e er
 
 	files, err := filesInDir(vos, basedir)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	sort.Slice(files, func(i, j int) bool { return files[i].Name() < files[j].Name() })
@@ -440,7 +440,7 @@ func doGlob(vos OS, basedir, pattern string, matches []string) (m []string, e er
 func filesInDir(vos OS, dirPath string) (files []os.FileInfo, e error) {
 	dir, err := vos.Open(dirPath)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	defer func() {
 		if err := dir.Close(); e == nil {
