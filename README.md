@@ -6,6 +6,7 @@ Path pattern matching and globbing supporting `doublestar` (`**`) patterns.
 [![Release](https://img.shields.io/github/release/bmatcuk/doublestar.svg?branch=master)](https://github.com/bmatcuk/doublestar/releases)
 [![Build Status](https://travis-ci.com/bmatcuk/doublestar.svg?branch=master)](https://travis-ci.com/bmatcuk/doublestar)
 [![codecov.io](https://img.shields.io/codecov/c/github/bmatcuk/doublestar.svg?branch=master)](https://codecov.io/github/bmatcuk/doublestar?branch=master)
+[![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/bmatcuk)
 
 ## About
 
@@ -265,6 +266,11 @@ matching (ie, Match()) and globbing (Glob()).
 `**` performance in matching is actually pretty similar to a regular `*`, but
 can cause a large number of reads when globbing as it will need to recursively
 traverse your filesystem.
+
+## Sponsors
+[![reviewpad](../sponsors/reviewpad.png?raw=true)](https://reviewpad.com/)
+
+Thanks for sponsoring me!
 
 ## License
 
