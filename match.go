@@ -209,21 +209,21 @@ MATCH:
 				}
 				closingIdx += patIdx
 
-				for ;; {
+				for {
 					commaIdx := indexNextAlt(pattern[patIdx:closingIdx], separator != '\\')
 					if commaIdx == -1 {
 						break
 					}
 					commaIdx += patIdx
 
-					result, err := matchWithSeparator(pattern[patIdx:commaIdx] + pattern[closingIdx+1:], name[nameIdx:], separator, validate)
+					result, err := matchWithSeparator(pattern[patIdx:commaIdx]+pattern[closingIdx+1:], name[nameIdx:], separator, validate)
 					if result || err != nil {
 						return result, err
 					}
 
 					patIdx = commaIdx + 1
 				}
-				return matchWithSeparator(pattern[patIdx:closingIdx] + pattern[closingIdx+1:], name[nameIdx:], separator, validate)
+				return matchWithSeparator(pattern[patIdx:closingIdx]+pattern[closingIdx+1:], name[nameIdx:], separator, validate)
 
 			case '\\':
 				if separator != '\\' {
@@ -301,7 +301,7 @@ MATCH:
 func isZeroLengthPattern(pattern string, separator rune) (ret bool, err error) {
 	// `/**` is a special case - a pattern such as `path/to/a/**` *should* match
 	// `path/to/a` because `a` might be a directory
-	if pattern == "" || pattern == "*" || pattern == "**" || pattern == string(separator) + "**" {
+	if pattern == "" || pattern == "*" || pattern == "**" || pattern == string(separator)+"**" {
 		return true, nil
 	}
 
@@ -314,21 +314,21 @@ func isZeroLengthPattern(pattern string, separator rune) (ret bool, err error) {
 		closingIdx += 1
 
 		patIdx := 1
-		for ;; {
+		for {
 			commaIdx := indexNextAlt(pattern[patIdx:closingIdx], separator != '\\')
 			if commaIdx == -1 {
 				break
 			}
 			commaIdx += patIdx
 
-			ret, err = isZeroLengthPattern(pattern[patIdx:commaIdx] + pattern[closingIdx+1:], separator)
+			ret, err = isZeroLengthPattern(pattern[patIdx:commaIdx]+pattern[closingIdx+1:], separator)
 			if ret || err != nil {
 				return
 			}
 
 			patIdx = commaIdx + 1
 		}
-		return isZeroLengthPattern(pattern[patIdx:closingIdx] + pattern[closingIdx+1:], separator)
+		return isZeroLengthPattern(pattern[patIdx:closingIdx]+pattern[closingIdx+1:], separator)
 	}
 
 	// no luck - validate the rest of the pattern

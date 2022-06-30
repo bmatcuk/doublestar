@@ -79,7 +79,7 @@ func doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool) (matches 
 	// if `splitIdx` is less than `patternStart`, we know `dir` has no meta
 	// characters. They would be equal if they are both -1, which means `dir`
 	// will be ".", and we know that doesn't have meta characters either.
-	if splitIdx <= patternStart{
+	if splitIdx <= patternStart {
 		return globDir(fsys, dir, pattern, matches, firstSegment)
 	}
 
@@ -346,7 +346,7 @@ func buildAlt(prefix, pattern string, startIdx, openingIdx, currentIdx, nextIdx,
 	patLen := len(pattern)
 	size := (openingIdx - startIdx) + (nextIdx - currentIdx) + (patLen - afterIdx)
 	if prefix != "" {
-		buf = make([]byte, 0, size + len(prefix) + 1)
+		buf = make([]byte, 0, size+len(prefix)+1)
 		buf = append(buf, prefix...)
 		buf = append(buf, '/')
 	} else {
@@ -377,13 +377,13 @@ func sortAndRemoveDups(matches []string, idx1, idx2, l int) []string {
 
 			shft := idx2 + 1
 			for ; shft < l && matches[shft] < tmp; shft++ {
-				matches[shft - 1] = matches[shft]
+				matches[shft-1] = matches[shft]
 			}
-			matches[shft - 1] = tmp
+			matches[shft-1] = tmp
 		} else {
 			// duplicate - shift matches above idx2 down one and decrement l
 			for shft := idx2 + 1; shft < l; shft++ {
-				matches[shft - 1] = matches[shft]
+				matches[shft-1] = matches[shft]
 			}
 			if l--; idx2 == l {
 				// nothing left to do... matches[idx2:] must have been full of dups
