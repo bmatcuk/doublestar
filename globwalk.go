@@ -271,5 +271,5 @@ func dirEntryFromFileInfo(fi fs.FileInfo) fs.DirEntry {
 
 type DirEntryWithFullPath struct {
 	Entry fs.DirEntry
-	Path string
+	Path  string
 }
