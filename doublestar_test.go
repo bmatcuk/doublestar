@@ -123,6 +123,7 @@ var matchTests = []MatchTest{
 	{"a{,bc}", "abc", true, nil, false, true, 2, 2},
 	{"a/{b/c,c/b}", "a/b/c", true, nil, false, true, 2, 2},
 	{"a/{b/c,c/b}", "a/c/b", true, nil, false, true, 2, 2},
+	{"a/a*{b,c}", "a/abc", true, nil, false, true, 1, 1},
 	{"{a/{b,c},abc}", "a/b", true, nil, false, true, 3, 3},
 	{"{a/{b,c},abc}", "a/c", true, nil, false, true, 3, 3},
 	{"{a/{b,c},abc}", "abc", true, nil, false, true, 3, 3},
@@ -136,6 +137,7 @@ var matchTests = []MatchTest{
 	{"abc**", "abc/b", false, nil, false, true, 3, 3},
 	{"**/*.txt", "abc/【test】.txt", true, nil, false, true, 1, 1},
 	{"**/【*", "abc/【test】.txt", true, nil, false, true, 1, 1},
+	{"**/{a,b}", "a/b", true, nil, false, true, 5, 5},
 	// unfortunately, io/fs can't handle this, so neither can Glob =(
 	{"broken-symlink", "broken-symlink", true, nil, true, false, 1, 1},
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, true, !onWindows, 1, 1},

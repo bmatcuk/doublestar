@@ -345,7 +345,7 @@ func buildAlt(prefix, pattern string, startIdx, openingIdx, currentIdx, nextIdx,
 	var buf []byte
 	patLen := len(pattern)
 	size := (openingIdx - startIdx) + (nextIdx - currentIdx) + (patLen - afterIdx)
-	if prefix != "" {
+	if prefix != "" && prefix != "." {
 		buf = make([]byte, 0, size + len(prefix) + 1)
 		buf = append(buf, prefix...)
 		buf = append(buf, '/')
