@@ -2,7 +2,9 @@ package doublestar
 
 import (
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 )
 
 // Glob returns the names of all files matching pattern or nil if there is no
@@ -96,6 +98,39 @@ func doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool) (matches 
 	}
 
 	return
+}
+
+// FilepathGlob returns the names of all files matching pattern or nil if there is
+// no matching file.
+// The syntax of pattern is the same as in Match(). The pattern
+// may describe hierarchical names such as usr/*/bin/ed.
+//
+// FilepathGlob ignores file system errors such as I/O errors reading directories.
+// The only possible returned error is ErrBadPattern, reporting that the
+// pattern is malformed.
+//
+// Note: this is meant as a drop-in replacement for path/filepath.Glob().
+// The matching paths have the same format as what is returned by path/ilepath.Glob().
+func FilepathGlob(pattern string) ([]string, error) {
+	pattern = filepath.Clean(pattern)
+	base, f := SplitPattern(pattern)
+	if base == "" {
+		base = string(os.PathSeparator)
+	}
+	fs := os.DirFS(base)
+	matches, err := Glob(fs, f)
+	if err != nil {
+		return nil, err
+	}
+	for i := range matches {
+		matches[i] = filepath.Join(base, matches[i])
+	}
+	if len(matches) == 0 {
+		if _, err := os.Stat(pattern); err == nil {
+			matches = []string{pattern}
+		}
+	}
+	return matches, nil
 }
 
 // handle alts in the glob pattern - `openingIdx` and `closingIdx` are the
