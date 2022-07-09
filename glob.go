@@ -311,7 +311,7 @@ func indexMatchedOpeningAlt(s string) int {
 
 // Returns true if the path exists
 func exists(fsys fs.FS, name string) bool {
-	if _, err := fs.Stat(fsys, name); os.IsNotExist(err) {
+	if _, err := fs.Stat(fsys, name); err != nil {
 		return false
 	}
 	return true
