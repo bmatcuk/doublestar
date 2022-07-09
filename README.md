@@ -148,6 +148,33 @@ separator even if that's not correct for your OS (like Windows). If you aren't
 sure if that's the case, you can use filepath.ToSlash() on your pattern before
 calling GlobWalk().
 
+### FilepathGlob
+
+```go
+func FilepathGlob(pattern string) (matches []string, err error)
+```
+
+FilepathGlob returns the names of all files matching pattern or nil if there is
+no matching file. The syntax of pattern is the same as in Match(). The pattern
+may describe hierarchical names such as usr/*/bin/ed.
+
+FilepathGlob ignores file system errors such as I/O errors reading directories.
+The only possible returned error is ErrBadPattern, reporting that the pattern
+is malformed.
+
+Note: FilepathGlob is a convenience function that is meant as a drop-in
+replacement for `path/filepath.Glob()` for users who don't need the
+complication of io/fs. Basically, it:
+
+* Runs `filepath.Clean()` and `ToSlash()` on the pattern
+* Runs `SplitPattern()` to get a base path and a pattern to Glob
+* Creates an FS object from the base path and `Glob()s` on the pattern
+* Joins the base path with all of the matches from `Glob()`
+
+Unlike filepath.Glob, FilepathGlob will always return paths using `/` as the
+path separator. If you want separators appropriate for your system, pass the
+matches to `filepath.FromSlash()`.
+
 ### SplitPattern
 
 ```go

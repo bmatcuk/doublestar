@@ -360,6 +360,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
 
 	matches, err := Glob(fsys, tt.pattern)
 	verifyGlobResults(t, idx, "Glob", tt, fsys, matches, err)
+	testStandardGlob(t, idx, "Glob", tt, fsys, matches, err)
 }
 
 func TestGlobWalk(t *testing.T) {
@@ -367,89 +368,6 @@ func TestGlobWalk(t *testing.T) {
 	for idx, tt := range matchTests {
 		if tt.testOnDisk {
 			testGlobWalkWith(t, idx, tt, fsys)
-		}
-	}
-}
-
-func TestFilepathGlob(t *testing.T) {
-	fn := func(tests []MatchTest) {
-		for idx, tt := range tests {
-			if tt.testOnDisk {
-				testFilepathGlob(t, idx, tt, tt.pattern)
-				// Same test, prefix pattern with "." or ".."
-				// The results should still be equivalent to filepath.Glob().
-				testFilepathGlob(t, idx, tt, filepath.Join(".", tt.pattern))
-				testFilepathGlob(t, idx, tt, filepath.Join(".", "..", "test", tt.pattern))
-			}
-		}
-	}
-	fn(matchTests)
-	fn([]MatchTest{
-		{".", "", true, nil, true, true, 1, 1},
-		{"..", "", true, nil, true, true, 1, 1},
-		{"../..", "", true, nil, true, true, 1, 1},
-		{"/", "", true, nil, true, true, 1, 1},
-	})
-}
-
-func testFilepathGlob(t *testing.T, idx int, tt MatchTest, pattern string) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("#%v. Glob(%#q) panicked: %#v", idx, pattern, r)
-		}
-	}()
-	if strings.Contains(pattern, "{") || strings.Contains(pattern, "[!") {
-		// Not supported by filepath.Glob
-		return
-	}
-	defer func() {
-		os.Chdir("..")
-	}()
-	// The patterns are relative to the "test" sub-directory.
-	os.Chdir("test")
-
-	numResults := tt.numResults
-	if onWindows {
-		numResults = tt.winNumResults
-	}
-	matchFilepath, errFilepath := filepath.Glob(pattern)
-	if errFilepath != nil {
-		// Skip test if filepath.Glob does not support pattern such as `[-]`
-		return
-	}
-	matchDoublestar, errDoublestar := FilepathGlob(pattern)
-	if (errDoublestar == nil && errFilepath != nil) || (errDoublestar != nil && errFilepath == nil) {
-		t.Errorf("#%v. FilepathGlob(%#q) = FilepathGlob returned err: %v filepath.Glob returned err: %v", idx, pattern, errDoublestar, errFilepath)
-	}
-
-	if strings.Contains(pattern, "**") {
-		// If filepath.Glob() finds a match, then doublestar.FilepathGlob() should also find it.
-		// doublestar.FilepathGlob() may also find additional matches because of the '**'.
-		for _, mb := range matchFilepath {
-			found := false
-			for _, ma := range matchDoublestar {
-				if strings.HasPrefix(ma, mb) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("#%v. FilepathGlob(%#q) = expected match %v", idx, pattern, mb)
-			}
-		}
-	} else {
-		if len(matchFilepath) != numResults {
-			t.Errorf("#%v. filepath.Glob(%#q) = %#v - should have %#v results, got %d", idx, tt.pattern, matchFilepath, tt.numResults, len(matchFilepath))
-		}
-		if len(matchDoublestar) != len(matchFilepath) {
-			t.Errorf("#%v. FilepathGlob(%#q). Wrong match length. doublestart.Glob: %v. filepath.Glob: %v", idx, pattern, matchDoublestar, matchFilepath)
-		}
-		for _, m := range matchFilepath {
-			// If filepath.Glob() finds a match, then doublestar.FilepathGlob() should also find it,
-			// and the string should be the same.
-			if !inSlice(m, matchDoublestar) {
-				t.Errorf("#%v. FilepathGlob(%#q) = expected match %v, but got %v", idx, pattern, m, matchDoublestar)
-			}
 		}
 	}
 }
@@ -467,6 +385,50 @@ func testGlobWalkWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
 		return nil
 	})
 	verifyGlobResults(t, idx, "GlobWalk", tt, fsys, matches, err)
+	testStandardGlob(t, idx, "GlobWalk", tt, fsys, matches, err)
+}
+
+func testStandardGlob(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.FS, matches []string, err error) {
+	if tt.isStandard {
+		stdMatches, stdErr := fs.Glob(fsys, tt.pattern)
+		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. %v(%#q) != fs.Glob(...). Got %#v, %v want %#v, %v", idx, fn, tt.pattern, matches, err, stdMatches, stdErr)
+		}
+	}
+}
+
+func TestFilepathGlob(t *testing.T) {
+	fsys := os.DirFS("test")
+
+	// The patterns are relative to the "test" sub-directory.
+	defer func() {
+		os.Chdir("..")
+	}()
+	os.Chdir("test")
+
+	for idx, tt := range matchTests {
+		if tt.testOnDisk {
+			testFilepathGlobWith(t, idx, tt, fsys)
+		}
+	}
+}
+
+func testFilepathGlobWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("#%v. Glob(%#q) panicked: %#v", idx, tt.pattern, r)
+		}
+	}()
+
+	matches, err := FilepathGlob(tt.pattern)
+	verifyGlobResults(t, idx, "FilepathGlob", tt, fsys, matches, err)
+
+	if tt.isStandard {
+		stdMatches, stdErr := filepath.Glob(tt.pattern)
+		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. FilepathGlob(%#q) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, tt.pattern, matches, err, stdMatches, stdErr)
+		}
+	}
 }
 
 func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.FS, matches []string, err error) {
@@ -487,11 +449,25 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 	if err != tt.expectedErr {
 		t.Errorf("#%v. %v(%#q) has error %v, but should be %v", idx, fn, tt.pattern, err, tt.expectedErr)
 	}
+}
 
-	if tt.isStandard {
-		stdMatches, stdErr := fs.Glob(fsys, tt.pattern)
-		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
-			t.Errorf("#%v. %v(%#q) != fs.Glob(...). Got %#v, %v want %#v, %v", idx, fn, tt.pattern, matches, err, stdMatches, stdErr)
+func TestGlobSorted(t *testing.T) {
+	fsys := os.DirFS("test")
+	expected := []string{"a", "abc", "abcd", "abcde", "abxbbxdbxebxczzx", "abxbbxdbxebxczzy", "axbxcxdxe", "axbxcxdxexxx", "a☺b"}
+	matches, err := Glob(fsys, "a*")
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+		return
+	}
+
+	if len(matches) != len(expected) {
+		t.Errorf("Glob returned %#v; expected %#v", matches, expected)
+		return
+	}
+	for idx, match := range matches {
+		if match != expected[idx] {
+			t.Errorf("Glob returned %#v; expected %#v", matches, expected)
+			return
 		}
 	}
 }
@@ -597,27 +573,6 @@ func symlink(oldname, newname string) {
 	err := os.Symlink(oldname, newname)
 	if err != nil && !os.IsExist(err) {
 		log.Fatalf("Could not create symlink %v -> %v: %v\n", oldname, newname, err)
-	}
-}
-
-func TestGlobSorted(t *testing.T) {
-	fsys := os.DirFS("test")
-	expected := []string{"a", "abc", "abcd", "abcde", "abxbbxdbxebxczzx", "abxbbxdbxebxczzy", "axbxcxdxe", "axbxcxdxexxx", "a☺b"}
-	matches, err := Glob(fsys, "a*")
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
-		return
-	}
-
-	if len(matches) != len(expected) {
-		t.Errorf("Glob returned %#v; expected %#v", matches, expected)
-		return
-	}
-	for idx, match := range matches {
-		if match != expected[idx] {
-			t.Errorf("Glob returned %#v; expected %#v", matches, expected)
-			return
-		}
 	}
 }
 
