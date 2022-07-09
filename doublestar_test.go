@@ -17,7 +17,7 @@ type MatchTest struct {
 	pattern, testPath string // a pattern and path to test the pattern on
 	shouldMatch       bool   // true if the pattern should match the path
 	expectedErr       error  // an expected error
-	isStandard        bool   // pattern doesn't use any doublestar features
+	isStandard        bool   // pattern doesn't use any doublestar features (e.g. '**', '{a,b}')
 	testOnDisk        bool   // true: test pattern against files in "test" directory
 	numResults        int    // number of glob results if testing on disk
 	winNumResults     int    // number of glob results on Windows
@@ -33,7 +33,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, nil, true, false, 0, 0},
 	{"/*", "//", false, nil, true, false, 0, 0},
 	{"abc", "abc", true, nil, true, true, 1, 1},
-	{"*", "abc", true, nil, true, true, 19, 15},
+	{"*", "abc", true, nil, true, true, 20, 15},
 	{"*c", "abc", true, nil, true, true, 2, 2},
 	{"*/", "a/", true, nil, true, false, 0, 0},
 	{"a*", "a", true, nil, true, true, 9, 9},
@@ -60,8 +60,8 @@ var matchTests = []MatchTest{
 	{"a[!a]b", "a☺b", true, nil, false, true, 1, 1},
 	{"a???b", "a☺b", false, nil, true, true, 0, 0},
 	{"a[^a][^a][^a]b", "a☺b", false, nil, true, true, 0, 0},
-	{"[a-ζ]*", "α", true, nil, true, true, 17, 15},
-	{"*[a-ζ]", "A", false, nil, true, true, 17, 15},
+	{"[a-ζ]*", "α", true, nil, true, true, 18, 15},
+	{"*[a-ζ]", "A", false, nil, true, true, 18, 15},
 	{"a?b", "a/b", false, nil, true, true, 1, 1},
 	{"a*b", "a/b", false, nil, true, true, 1, 1},
 	{"[\\]a]", "]", true, nil, true, !onWindows, 2, 2},
@@ -143,6 +143,39 @@ var matchTests = []MatchTest{
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, true, !onWindows, 1, 1},
 	{"working-sym*/*", "working-symlink/c", true, nil, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, nil, false, !onWindows, 2, 2},
+	{"e/**", "e/**", true, nil, false, true, 11, 11},
+	{"e/**", "e/*", true, nil, false, true, 11, 11},
+	{"e/**", "e/?", true, nil, false, true, 11, 11},
+	{"e/**", "e/[", true, nil, false, true, 11, 11},
+	{"e/**", "e/]", true, nil, false, true, 11, 11},
+	{"e/**", "e/[]", true, nil, false, true, 11, 11},
+	{"e/**", "e/{", true, nil, false, true, 11, 11},
+	{"e/**", "e/}", true, nil, false, true, 11, 11},
+	{"e/**", "e/\\", true, nil, false, true, 11, 11},
+	{"e/*", "e/*", true, nil, true, true, 10, 10},
+	{"e/?", "e/?", true, nil, true, true, 7, 7},
+	{"e/?", "e/*", true, nil, true, true, 7, 7},
+	{"e/?", "e/[", true, nil, true, true, 7, 7},
+	{"e/?", "e/]", true, nil, true, true, 7, 7},
+	{"e/?", "e/{", true, nil, true, true, 7, 7},
+	{"e/?", "e/}", true, nil, true, true, 7, 7},
+	{"e/\\[", "e/[", true, nil, true, !onWindows, 1, 1},
+	{"e/[", "e/[", false, ErrBadPattern, true, true, 0, 0},
+	{"e/]", "e/]", true, nil, true, true, 1, 1},
+	{"e/\\]", "e/]", true, nil, true, !onWindows, 1, 1},
+	{"e/\\{", "e/{", true, nil, true, !onWindows, 1, 1},
+	{"e/\\}", "e/}", true, nil, true, !onWindows, 1, 1},
+	// Find files where name has wildcard characters.
+	// On Windows, escaping is disabled. Instead, '\\' is treated as path separator.
+	{"e/[\\*\\?]", "e/*", true, nil, true, !onWindows, 2, 2},
+	{"e/[\\*\\?]", "e/?", true, nil, true, !onWindows, 2, 2},
+	{"e/[\\*\\?]", "e/**", false, nil, true, !onWindows, 2, 2},
+	{"e/[\\*\\?]?", "e/**", true, nil, true, !onWindows, 1, 1},
+	{"e/{\\*,\\?}", "e/*", true, nil, false, !onWindows, 2, 2},
+	{"e/{\\*,\\?}", "e/?", true, nil, false, !onWindows, 2, 2},
+	{"e/\\*", "e/*", true, nil, true, !onWindows, 1, 1},
+	{"e/\\?", "e/?", true, nil, true, !onWindows, 1, 1},
+	{"e/\\?", "e/**", false, nil, true, !onWindows, 1, 1},
 }
 
 func TestValidatePattern(t *testing.T) {
@@ -262,7 +295,15 @@ func TestPathMatchFake(t *testing.T) {
 		// PathMatch() which will use the system's separator. As a result, any
 		// patterns that might cause problems on-disk need to also be avoided
 		// here in this test.
-		if tt.testOnDisk && tt.pattern != "\\" {
+		// On Windows, escaping is disabled. Instead, '\\' is treated as path separator.
+		// So it's not possible to match escaped wild characters.
+		if tt.testOnDisk && tt.pattern != "\\" &&
+			!strings.Contains(tt.pattern, "\\*") &&
+			!strings.Contains(tt.pattern, "\\?") &&
+			!strings.Contains(tt.pattern, "\\[") &&
+			!strings.Contains(tt.pattern, "\\]") &&
+			!strings.Contains(tt.pattern, "\\{") &&
+			!strings.Contains(tt.pattern, "\\}") {
 			testPathMatchFakeWith(t, idx, tt)
 		}
 	}
@@ -359,7 +400,7 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 		numResults = tt.winNumResults
 	}
 	if len(matches) != numResults {
-		t.Errorf("#%v. %v(%#q) = %#v - should have %#v results", idx, fn, tt.pattern, matches, tt.numResults)
+		t.Errorf("#%v. %v(%#q) = %#v - should have %#v results, got %d", idx, fn, tt.pattern, matches, tt.numResults, len(matches))
 	}
 	if inSlice(tt.testPath, matches) != tt.shouldMatch {
 		if tt.shouldMatch {
@@ -513,6 +554,7 @@ func TestMain(m *testing.M) {
 	mkdirp("test", "axbxcxdxe", "xxx")
 	mkdirp("test", "axbxcxdxexxx")
 	mkdirp("test", "b")
+	mkdirp("test", "e")
 
 	// create test files
 	touch("test", "a", "abc")
@@ -536,10 +578,24 @@ func TestMain(m *testing.M) {
 	touch("test", "α")
 	touch("test", "abc", "【test】.txt")
 
+	touch("test", "e", "[")
+	touch("test", "e", "]")
+	touch("test", "e", "{")
+	touch("test", "e", "}")
+	touch("test", "e", "[]")
+
 	if !onWindows {
 		// these files/symlinks won't work on Windows
 		touch("test", "-")
 		touch("test", "]")
+		// Create test files where name includes wildcard characters
+		// or backslash. Not supported on Windows.
+		touch("test", "e", "*")
+		touch("test", "e", "**")
+		touch("test", "e", "****")
+		touch("test", "e", "?")
+		touch("test", "e", "\\")
+
 		symlink("../axbxcxdxe/", "test/b/symlink-dir")
 		symlink("/tmp/nonexistant-file-20160902155705", "test/broken-symlink")
 		symlink("a/b", "test/working-symlink")

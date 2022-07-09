@@ -44,9 +44,11 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 	if patternStart == -1 {
 		// pattern doesn't contain any meta characters - does a file matching the
 		// pattern exist?
-		info, err := fs.Stat(fsys, pattern)
+		// The pattern may contain escaped wildcard characters for an exact path match.
+		path := unescapeWildcards(pattern)
+		info, err := fs.Stat(fsys, path)
 		if err == nil {
-			err = fn(pattern, dirEntryFromFileInfo(info))
+			err = fn(path, dirEntryFromFileInfo(info))
 			return err
 		} else {
 			// ignore IO errors
