@@ -23,8 +23,13 @@ jobs:
         with:
           go-version: 1.18
       -
-        name: Test
+        name: Test With Coverage
         run: go test -race -coverprofile=coverage.txt -covermode=atomic
+        if: matrix.os == 'ubuntu-latest'
+      -
+        name: Test Without Coverage
+        run: go test
+        if: matrix.os != 'ubuntu-latest'
       -
         name: Upload Coverage Report
         uses: codecov/codecov-action@v3
