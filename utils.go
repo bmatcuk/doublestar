@@ -73,9 +73,8 @@ func SplitPattern(p string) (base, pattern string) {
 //   * Creates an FS object from the base path and `Glob()s` on the pattern
 //   * Joins the base path with all of the matches from `Glob()`
 //
-// Unlike filepath.Glob, FilepathGlob will always return paths using `/` as the
-// path separator. If you want separators appropriate for your system, pass the
-// matches to `filepath.FromSlash()`.
+// Returned paths will use the system's path separator, just like
+// `filepath.Glob()`.
 func FilepathGlob(pattern string) (matches []string, err error) {
 	pattern = filepath.Clean(pattern)
 	pattern = filepath.ToSlash(pattern)
@@ -87,7 +86,7 @@ func FilepathGlob(pattern string) (matches []string, err error) {
 	for i := range matches {
 		// use path.Join because we used ToSlash above to ensure our paths are made
 		// of forward slashes, no matter what the system uses
-		matches[i] = path.Join(base, matches[i])
+		matches[i] = filepath.FromSlash(path.Join(base, matches[i]))
 	}
 	return
 }

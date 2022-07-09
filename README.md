@@ -171,9 +171,8 @@ complication of io/fs. Basically, it:
 * Creates an FS object from the base path and `Glob()s` on the pattern
 * Joins the base path with all of the matches from `Glob()`
 
-Unlike filepath.Glob, FilepathGlob will always return paths using `/` as the
-path separator. If you want separators appropriate for your system, pass the
-matches to `filepath.FromSlash()`.
+Returned paths will use the system's path separator, just like
+`filepath.Glob()`.
 
 ### SplitPattern
 
