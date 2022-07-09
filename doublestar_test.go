@@ -371,6 +371,89 @@ func TestGlobWalk(t *testing.T) {
 	}
 }
 
+func TestFilepathGlob(t *testing.T) {
+	fn := func(tests []MatchTest) {
+		for idx, tt := range tests {
+			if tt.testOnDisk {
+				testFilepathGlob(t, idx, tt, tt.pattern)
+				// Same test, prefix pattern with "." or ".."
+				// The results should still be equivalent to filepath.Glob().
+				testFilepathGlob(t, idx, tt, filepath.Join(".", tt.pattern))
+				testFilepathGlob(t, idx, tt, filepath.Join(".", "..", "test", tt.pattern))
+			}
+		}
+	}
+	fn(matchTests)
+	fn([]MatchTest{
+		{".", "", true, nil, true, true, 1, 1},
+		{"..", "", true, nil, true, true, 1, 1},
+		{"../..", "", true, nil, true, true, 1, 1},
+		{"/", "", true, nil, true, true, 1, 1},
+	})
+}
+
+func testFilepathGlob(t *testing.T, idx int, tt MatchTest, pattern string) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("#%v. Glob(%#q) panicked: %#v", idx, pattern, r)
+		}
+	}()
+	if strings.Contains(pattern, "{") || strings.Contains(pattern, "[!") {
+		// Not supported by filepath.Glob
+		return
+	}
+	defer func() {
+		os.Chdir("..")
+	}()
+	// The patterns are relative to the "test" sub-directory.
+	os.Chdir("test")
+
+	numResults := tt.numResults
+	if onWindows {
+		numResults = tt.winNumResults
+	}
+	matchFilepath, errFilepath := filepath.Glob(pattern)
+	if errFilepath != nil {
+		// Skip test if filepath.Glob does not support pattern such as `[-]`
+		return
+	}
+	matchDoublestar, errDoublestar := FilepathGlob(pattern)
+	if (errDoublestar == nil && errFilepath != nil) || (errDoublestar != nil && errFilepath == nil) {
+		t.Errorf("#%v. FilepathGlob(%#q) = FilepathGlob returned err: %v filepath.Glob returned err: %v", idx, pattern, errDoublestar, errFilepath)
+	}
+
+	if strings.Contains(pattern, "**") {
+		// If filepath.Glob() finds a match, then doublestar.FilepathGlob() should also find it.
+		// doublestar.FilepathGlob() may also find additional matches because of the '**'.
+		for _, mb := range matchFilepath {
+			found := false
+			for _, ma := range matchDoublestar {
+				if strings.HasPrefix(ma, mb) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("#%v. FilepathGlob(%#q) = expected match %v", idx, pattern, mb)
+			}
+		}
+	} else {
+		if len(matchFilepath) != numResults {
+			t.Errorf("#%v. filepath.Glob(%#q) = %#v - should have %#v results, got %d", idx, tt.pattern, matchFilepath, tt.numResults, len(matchFilepath))
+		}
+		if len(matchDoublestar) != len(matchFilepath) {
+			t.Errorf("#%v. FilepathGlob(%#q). Wrong match length. doublestart.Glob: %v. filepath.Glob: %v", idx, pattern, matchDoublestar, matchFilepath)
+		}
+		for _, m := range matchFilepath {
+			// If filepath.Glob() finds a match, then doublestar.FilepathGlob() should also find it,
+			// and the string should be the same.
+			if !inSlice(m, matchDoublestar) {
+				t.Errorf("#%v. FilepathGlob(%#q) = expected match %v, but got %v", idx, pattern, m, matchDoublestar)
+			}
+		}
+	}
+}
+
 func testGlobWalkWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
 	defer func() {
 		if r := recover(); r != nil {
