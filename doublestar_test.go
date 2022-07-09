@@ -54,7 +54,7 @@ var matchTests = []MatchTest{
 	{"ab[^c]", "abc", false, nil, true, true, 0, 0},
 	{"ab[^b-d]", "abc", false, nil, true, true, 0, 0},
 	{"ab[^e-g]", "abc", true, nil, true, true, 1, 1},
-	{"a\\*b", "ab", false, nil, true, true, 0, 0},
+	{"a\\*b", "ab", false, nil, true, !onWindows, 0, 0},
 	{"a?b", "a☺b", true, nil, true, true, 1, 1},
 	{"a[^a]b", "a☺b", true, nil, true, true, 1, 1},
 	{"a[!a]b", "a☺b", true, nil, false, true, 1, 1},
@@ -111,10 +111,9 @@ var matchTests = []MatchTest{
 	{"a/**/d", "a/b/c/d", true, nil, false, true, 1, 1},
 	{"a/\\**", "a/b/c", false, nil, false, !onWindows, 0, 0},
 	{"a/\\[*\\]", "a/bc", false, nil, true, !onWindows, 0, 0},
-	// this is an odd case: filepath.Glob() will return results
-	{"a//b/c", "a/b/c", false, nil, true, false, 0, 0},
-	{"a/b/c", "a/b//c", false, nil, true, true, 1, 1},
-	// also odd: Glob + filepath.Glob return results
+	// this fails the FilepathGlob test on Windows
+	{"a/b/c", "a/b//c", false, nil, true, !onWindows, 1, 1},
+	// odd: Glob + filepath.Glob return results
 	{"a/", "a", false, nil, true, false, 0, 0},
 	{"ab{c,d}", "abc", true, nil, false, true, 1, 1},
 	{"ab{c,d,*}", "abcde", true, nil, false, true, 5, 5},
@@ -161,7 +160,8 @@ var matchTests = []MatchTest{
 	{"e/?", "e/}", true, nil, true, true, 7, 4},
 	{"e/\\[", "e/[", true, nil, true, !onWindows, 1, 1},
 	{"e/[", "e/[", false, ErrBadPattern, true, true, 0, 0},
-	{"e/]", "e/]", true, nil, true, true, 1, 1},
+	// filepath.Glob on Windows returns "e/]", ie, wrong path sep
+	{"e/]", "e/]", true, nil, true, !onWindows, 1, 1},
 	{"e/\\]", "e/]", true, nil, true, !onWindows, 1, 1},
 	{"e/\\{", "e/{", true, nil, true, !onWindows, 1, 1},
 	{"e/\\}", "e/}", true, nil, true, !onWindows, 1, 1},
@@ -408,7 +408,9 @@ func TestFilepathGlob(t *testing.T) {
 
 	for idx, tt := range matchTests {
 		if tt.testOnDisk {
-			testFilepathGlobWith(t, idx, tt, fsys)
+			ttmod := tt
+			ttmod.testPath = filepath.FromSlash(tt.testPath)
+			testFilepathGlobWith(t, idx, ttmod, fsys)
 		}
 	}
 }
