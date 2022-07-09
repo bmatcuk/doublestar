@@ -165,8 +165,6 @@ var matchTests = []MatchTest{
 	{"e/\\]", "e/]", true, nil, true, !onWindows, 1, 1},
 	{"e/\\{", "e/{", true, nil, true, !onWindows, 1, 1},
 	{"e/\\}", "e/}", true, nil, true, !onWindows, 1, 1},
-	// Find files where name has wildcard characters.
-	// On Windows, escaping is disabled. Instead, '\\' is treated as path separator.
 	{"e/[\\*\\?]", "e/*", true, nil, true, !onWindows, 2, 2},
 	{"e/[\\*\\?]", "e/?", true, nil, true, !onWindows, 2, 2},
 	{"e/[\\*\\?]", "e/**", false, nil, true, !onWindows, 2, 2},
@@ -297,13 +295,7 @@ func TestPathMatchFake(t *testing.T) {
 		// here in this test.
 		// On Windows, escaping is disabled. Instead, '\\' is treated as path separator.
 		// So it's not possible to match escaped wild characters.
-		if tt.testOnDisk && tt.pattern != "\\" &&
-			!strings.Contains(tt.pattern, "\\*") &&
-			!strings.Contains(tt.pattern, "\\?") &&
-			!strings.Contains(tt.pattern, "\\[") &&
-			!strings.Contains(tt.pattern, "\\]") &&
-			!strings.Contains(tt.pattern, "\\{") &&
-			!strings.Contains(tt.pattern, "\\}") {
+		if tt.testOnDisk && !strings.Contains(tt.pattern, "\\") {
 			testPathMatchFakeWith(t, idx, tt)
 		}
 	}
@@ -400,7 +392,7 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 		numResults = tt.winNumResults
 	}
 	if len(matches) != numResults {
-		t.Errorf("#%v. %v(%#q) = %#v - should have %#v results, got %d", idx, fn, tt.pattern, matches, tt.numResults, len(matches))
+		t.Errorf("#%v. %v(%#q) = %#v - should have %#v results, got %#v", idx, fn, tt.pattern, matches, tt.numResults, len(matches))
 	}
 	if inSlice(tt.testPath, matches) != tt.shouldMatch {
 		if tt.shouldMatch {
@@ -588,8 +580,6 @@ func TestMain(m *testing.M) {
 		// these files/symlinks won't work on Windows
 		touch("test", "-")
 		touch("test", "]")
-		// Create test files where name includes wildcard characters
-		// or backslash. Not supported on Windows.
 		touch("test", "e", "*")
 		touch("test", "e", "**")
 		touch("test", "e", "****")

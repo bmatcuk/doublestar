@@ -1,5 +1,9 @@
 package doublestar
 
+import (
+	"strings"
+)
+
 // SplitPattern is a utility function. Given a pattern, SplitPattern will
 // return two strings: the first string is everything up to the last slash
 // (`/`) that appears _before_ any unescaped "meta" characters (ie, `*?[{`).
@@ -66,4 +70,11 @@ func indexNextAlt(s string, allowEscaping bool) int {
 		}
 	}
 	return -1
+}
+
+var metaReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}")
+
+// Unescapes meta characters (*?[]{})
+func unescapeMeta(pattern string) string {
+	return metaReplacer.Replace(pattern)
 }

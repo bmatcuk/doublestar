@@ -2,9 +2,7 @@ package doublestar
 
 import (
 	"io/fs"
-	"os"
 	"path"
-	"strings"
 )
 
 // Glob returns the names of all files matching pattern or nil if there is no
@@ -44,12 +42,6 @@ func Glob(fsys fs.FS, pattern string) ([]string, error) {
 	return doGlob(fsys, pattern, nil, true)
 }
 
-var wildcardReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}")
-
-func unescapeWildcards(pattern string) string {
-	return wildcardReplacer.Replace(pattern)
-}
-
 // Does the actual globbin'
 func doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool) (matches []string, err error) {
 	matches = m
@@ -58,7 +50,7 @@ func doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool) (matches 
 		// pattern doesn't contain any meta characters - does a file matching the
 		// pattern exist?
 		// The pattern may contain escaped wildcard characters for an exact path match.
-		path := unescapeWildcards(pattern)
+		path := unescapeMeta(pattern)
 		if exists(fsys, path) {
 			matches = append(matches, path)
 			return
