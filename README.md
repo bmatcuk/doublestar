@@ -136,7 +136,10 @@ GlobWalk may have a small performance benefit over Glob if you do not need a
 slice of matches because it can avoid allocating memory for the matches.
 Additionally, GlobWalk gives you access to the `fs.DirEntry` objects for each
 match, and lets you quit early by returning a non-nil error from your callback
-function.
+function. Like `io/fs.WalkDir`, if your callback returns `SkipDir`, GlobWalk
+will skip the current directory. This means that if the current path _is_ a
+directory, GlobWalk will not recurse into it. If the current path is not a
+directory, the rest of the parent directory will be skipped.
 
 GlobWalk ignores file system errors such as I/O errors reading directories.
 GlobWalk may return ErrBadPattern, reporting that the pattern is malformed.

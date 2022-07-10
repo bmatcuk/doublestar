@@ -1,5 +1,3 @@
-// This file is mostly copied from Go's path/match_test.go
-
 package doublestar
 
 import (
@@ -160,8 +158,7 @@ var matchTests = []MatchTest{
 	{"e/?", "e/}", true, nil, true, true, 7, 4},
 	{"e/\\[", "e/[", true, nil, true, !onWindows, 1, 1},
 	{"e/[", "e/[", false, ErrBadPattern, true, true, 0, 0},
-	// filepath.Glob on Windows returns "e/]", ie, wrong path sep
-	{"e/]", "e/]", true, nil, true, !onWindows, 1, 1},
+	{"e/]", "e/]", true, nil, true, true, 1, 1},
 	{"e/\\]", "e/]", true, nil, true, !onWindows, 1, 1},
 	{"e/\\{", "e/{", true, nil, true, !onWindows, 1, 1},
 	{"e/\\}", "e/}", true, nil, true, !onWindows, 1, 1},
@@ -409,6 +406,7 @@ func TestFilepathGlob(t *testing.T) {
 	for idx, tt := range matchTests {
 		if tt.testOnDisk {
 			ttmod := tt
+			ttmod.pattern = filepath.FromSlash(tt.pattern)
 			ttmod.testPath = filepath.FromSlash(tt.testPath)
 			testFilepathGlobWith(t, idx, ttmod, fsys)
 		}

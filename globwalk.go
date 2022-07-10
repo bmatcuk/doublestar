@@ -3,7 +3,14 @@ package doublestar
 import (
 	"io/fs"
 	"path"
+	"path/filepath"
 )
+
+// If returned from GlobWalkFunc, will cause GlobWalk to skip the current
+// directory. In other words, if the current path is a directory, GlobWalk will
+// not recurse into it. Otherwise, GlobWalk will skip the rest of the current
+// directory.
+var SkipDir = fs.SkipDir
 
 // Callback function for GlobWalk(). If the function returns an error, GlobWalk
 // will end immediately and return the same error.
@@ -19,7 +26,10 @@ type GlobWalkFunc func(path string, d fs.DirEntry) error
 // slice of matches because it can avoid allocating memory for the matches.
 // Additionally, GlobWalk gives you access to the `fs.DirEntry` objects for
 // each match, and lets you quit early by returning a non-nil error from your
-// callback function.
+// callback function. Like `io/fs.WalkDir`, if your callback returns `SkipDir`,
+// GlobWalk will skip the current directory. This means that if the current
+// path _is_ a directory, GlobWalk will not recurse into it. If the current
+// path is not a directory, the rest of the parent directory will be skipped.
 //
 // GlobWalk ignores file system errors such as I/O errors reading directories.
 // GlobWalk may return ErrBadPattern, reporting that the pattern is malformed.
@@ -49,6 +59,9 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 		info, err := fs.Stat(fsys, path)
 		if err == nil {
 			err = fn(path, dirEntryFromFileInfo(info))
+			if err == SkipDir {
+				err = nil
+			}
 			return err
 		} else {
 			// ignore IO errors
@@ -115,8 +128,28 @@ func globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstS
 		}
 	}
 
+	skip := ""
 	for _, m := range matches {
+		if skip != "" {
+			// Because matches are sorted, we know that descendants of the skipped
+			// item must come immediately after the skipped item. If we find an item
+			// for which the parent directory does not match the skipped item, we
+			// know we're done skipping
+			if filepath.Dir(m.Path) == skip {
+				continue
+			}
+			skip = ""
+		}
 		if err = fn(m.Path, m.Entry); err != nil {
+			if err == SkipDir {
+				if isDir(fsys, "", m.Path, m.Entry) {
+					skip = m.Path
+				} else {
+					skip = filepath.Dir(m.Path)
+				}
+				err = nil
+				continue
+			}
 			return
 		}
 	}
@@ -179,7 +212,12 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 		if err != nil || !info.IsDir() {
 			return nil
 		}
-		return fn(dir, dirEntryFromFileInfo(info))
+
+		e = fn(dir, dirEntryFromFileInfo(info))
+		if e == SkipDir {
+			e = nil
+		}
+		return
 	}
 
 	if pattern == "**" {
@@ -189,6 +227,9 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 			return nil
 		}
 		if e = fn(dir, dirEntryFromFileInfo(info)); e != nil {
+			if e == SkipDir {
+				e = nil
+			}
 			return
 		}
 		return globDoubleStarWalk(fsys, dir, canMatchFiles, fn)
@@ -210,6 +251,9 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 			}
 			if matched {
 				if e = fn(path.Join(dir, name), info); e != nil {
+					if e == SkipDir {
+						e = nil
+					}
 					return
 				}
 			}
@@ -219,6 +263,7 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 	return
 }
 
+// recursively walk files/directories in a directory
 func globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
@@ -232,6 +277,10 @@ func globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkF
 		if isDir(fsys, dir, name, info) {
 			p := path.Join(dir, name)
 			if e = fn(p, info); e != nil {
+				if e == SkipDir {
+					e = nil
+					continue
+				}
 				return
 			}
 			if e = globDoubleStarWalk(fsys, p, canMatchFiles, fn); e != nil {
@@ -239,6 +288,9 @@ func globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkF
 			}
 		} else if canMatchFiles {
 			if e = fn(path.Join(dir, name), info); e != nil {
+				if e == SkipDir {
+					e = nil
+				}
 				return
 			}
 		}
