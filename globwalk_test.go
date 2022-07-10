@@ -22,6 +22,7 @@ var skipTests = []SkipTest{
 	{"a/**", "a/abc", "a/b", 1, 1},
 	{"a/**", "a/b/c", "a/b/c/d", 5, 5},
 	{"a/{**,c/*}", "a/b/c", "a/b/c/d", 5, 5},
+	{"a/{**,c/*}", "a/abc", "a/b", 1, 1},
 }
 
 func TestSkipDirInGlobWalk(t *testing.T) {

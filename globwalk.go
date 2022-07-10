@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 // If returned from GlobWalkFunc, will cause GlobWalk to skip the current
@@ -133,9 +134,17 @@ func globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstS
 		if skip != "" {
 			// Because matches are sorted, we know that descendants of the skipped
 			// item must come immediately after the skipped item. If we find an item
-			// for which the parent directory does not match the skipped item, we
-			// know we're done skipping
-			if filepath.Dir(m.Path) == skip {
+			// that does not have a prefix matching the skipped item, we know we're
+			// done skipping. I'm using strings.HasPrefix here because
+			// filepath.HasPrefix has been marked deprecated (and just calls
+			// strings.HasPrefix anyway). The reason it's deprecated is because it
+			// doesn't handle case-insensitive paths, nor does it guarantee that the
+			// prefix is actually a parent directory. Neither is an issue here: the
+			// paths come from the system so their cases will match, and we guarantee
+			// a parent directory by appending a slash to the prefix.
+			//
+			// NOTE: m.Path will always use slashes as path separators.
+			if strings.HasPrefix(m.Path, skip) {
 				continue
 			}
 			skip = ""
@@ -143,9 +152,12 @@ func globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstS
 		if err = fn(m.Path, m.Entry); err != nil {
 			if err == SkipDir {
 				if isDir(fsys, "", m.Path, m.Entry) {
-					skip = m.Path
+					// append a slash to guarantee `skip` will be treated as a parent dir
+					skip = m.Path + "/"
 				} else {
-					skip = filepath.Dir(m.Path)
+					// Dir() calls Clean() which calls FromSlash(), so we need to convert
+					// back to slashes
+					skip = filepath.ToSlash(filepath.Dir(m.Path)) + "/"
 				}
 				err = nil
 				continue
