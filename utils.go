@@ -1,7 +1,6 @@
 package doublestar
 
 import (
-	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -82,12 +81,11 @@ func FilepathGlob(pattern string) (matches []string, err error) {
 	base, f := SplitPattern(pattern)
 	fs := os.DirFS(base)
 	if matches, err = Glob(fs, f); err != nil {
-		if errors.Is(ErrBadPattern, err) {
-			// filepath.Glob() returns ErrBadPattern if the pattern is malformed.
-			// Return the same error for consistency.
-			return nil, filepath.ErrBadPattern
-		}
-		return nil, err
+		// filepath.Glob() returns filepath.ErrBadPattern if the pattern is malformed,
+		// unlike other functions in this package that return path.ErrBadPattern.
+		// Return the same error as filepath.Glob() for consistency.
+		// The only possible error is filepath.ErrBadPattern.
+		return nil, filepath.ErrBadPattern
 	}
 	for i := range matches {
 		// use path.Join because we used ToSlash above to ensure our paths are made
