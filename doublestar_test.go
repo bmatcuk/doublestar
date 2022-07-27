@@ -171,6 +171,9 @@ var matchTests = []MatchTest{
 	{"e/\\*", "e/*", true, nil, true, !onWindows, 1, 1},
 	{"e/\\?", "e/?", true, nil, true, !onWindows, 1, 1},
 	{"e/\\?", "e/**", false, nil, true, !onWindows, 1, 1},
+}
+
+var matchFilepathGlobTests = []MatchTest{
 	{".", ".", true, nil, true, !onWindows, 1, 1},
 	{"..", "..", true, nil, true, !onWindows, 1, 1},
 	{"../.", "../.", true, nil, true, !onWindows, 1, 1},
@@ -407,7 +410,7 @@ func TestFilepathGlob(t *testing.T) {
 	}()
 	os.Chdir("test")
 
-	for idx, tt := range matchTests {
+	for idx, tt := range append(matchTests, matchFilepathGlobTests...) {
 		if tt.testOnDisk {
 			ttmod := tt
 			ttmod.pattern = filepath.FromSlash(tt.pattern)
