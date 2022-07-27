@@ -1,7 +1,6 @@
 package doublestar
 
 import (
-	"errors"
 	"io/fs"
 	"log"
 	"os"
@@ -13,17 +12,29 @@ import (
 )
 
 type MatchTest struct {
-	pattern, testPath string // a pattern and path to test the pattern on
-	shouldMatch       bool   // true if the pattern should match the path
-	expectedErr       error  // an expected error
-	isStandard        bool   // pattern doesn't use any doublestar features (e.g. '**', '{a,b}')
-	testOnDisk        bool   // true: test pattern against files in "test" directory
-	numResults        int    // number of glob results if testing on disk
-	winNumResults     int    // number of glob results on Windows
+	pattern, testPath string                // a pattern and path to test the pattern on
+	shouldMatch       bool                  // true if the pattern should match the path
+	expectedErr       func(fn string) error // A function that returns the expected error
+	isStandard        bool                  // pattern doesn't use any doublestar features (e.g. '**', '{a,b}')
+	testOnDisk        bool                  // true: test pattern against files in "test" directory
+	numResults        int                   // number of glob results if testing on disk
+	winNumResults     int                   // number of glob results on Windows
 }
 
 // Tests which contain escapes and symlinks will not work on Windows
 var onWindows = runtime.GOOS == "windows"
+
+func errBadPattern(fn string) error {
+	switch fn {
+	case "FilepathGlob":
+		// doublestar.FilepathGlob should return the same error as filepath.Glob.
+		// The only possible error is filepath.ErrBadPattern.
+		// All other functions return path.ErrBadPattern.
+		return filepath.ErrBadPattern
+	default:
+		return ErrBadPattern
+	}
+}
 
 var matchTests = []MatchTest{
 	{"*", "", true, nil, true, false, 0, 0},
@@ -71,7 +82,7 @@ var matchTests = []MatchTest{
 	{"[\\-x]", "x", true, nil, true, !onWindows, 2, 2},
 	{"[\\-x]", "-", true, nil, true, !onWindows, 2, 2},
 	{"[\\-x]", "a", false, nil, true, !onWindows, 2, 2},
-	{"[]a]", "]", false, ErrBadPattern, true, true, 0, 0},
+	{"[]a]", "]", false, errBadPattern, true, true, 0, 0},
 	// doublestar, like bash, allows these when path.Match() does not
 	{"[-]", "-", true, nil, false, !onWindows, 1, 0},
 	{"[x-]", "x", true, nil, false, true, 2, 1},
@@ -85,13 +96,13 @@ var matchTests = []MatchTest{
 	{"[a-b-d]", "-", true, nil, false, !onWindows, 3, 2},
 	{"[a-b-d]", "c", false, nil, false, true, 3, 2},
 	{"[a-b-x]", "x", true, nil, false, true, 4, 3},
-	{"\\", "a", false, ErrBadPattern, true, !onWindows, 0, 0},
-	{"[", "a", false, ErrBadPattern, true, true, 0, 0},
-	{"[^", "a", false, ErrBadPattern, true, true, 0, 0},
-	{"[^bc", "a", false, ErrBadPattern, true, true, 0, 0},
-	{"a[", "a", false, ErrBadPattern, true, true, 0, 0},
-	{"a[", "ab", false, ErrBadPattern, true, true, 0, 0},
-	{"ad[", "ab", false, ErrBadPattern, true, true, 0, 0},
+	{"\\", "a", false, errBadPattern, true, !onWindows, 0, 0},
+	{"[", "a", false, errBadPattern, true, true, 0, 0},
+	{"[^", "a", false, errBadPattern, true, true, 0, 0},
+	{"[^bc", "a", false, errBadPattern, true, true, 0, 0},
+	{"a[", "a", false, errBadPattern, true, true, 0, 0},
+	{"a[", "ab", false, errBadPattern, true, true, 0, 0},
+	{"ad[", "ab", false, errBadPattern, true, true, 0, 0},
 	{"*x", "xxx", true, nil, true, true, 4, 4},
 	{"[abc]", "b", true, nil, true, true, 3, 3},
 	{"**", "", true, nil, false, false, 38, 38},
@@ -116,7 +127,7 @@ var matchTests = []MatchTest{
 	{"a/", "a", false, nil, true, false, 0, 0},
 	{"ab{c,d}", "abc", true, nil, false, true, 1, 1},
 	{"ab{c,d,*}", "abcde", true, nil, false, true, 5, 5},
-	{"ab{c,d}[", "abcd", false, ErrBadPattern, false, true, 0, 0},
+	{"ab{c,d}[", "abcd", false, errBadPattern, false, true, 0, 0},
 	{"a{,bc}", "a", true, nil, false, true, 2, 2},
 	{"a{,bc}", "abc", true, nil, false, true, 2, 2},
 	{"a/{b/c,c/b}", "a/b/c", true, nil, false, true, 2, 2},
@@ -158,7 +169,7 @@ var matchTests = []MatchTest{
 	{"e/?", "e/{", true, nil, true, true, 7, 4},
 	{"e/?", "e/}", true, nil, true, true, 7, 4},
 	{"e/\\[", "e/[", true, nil, true, !onWindows, 1, 1},
-	{"e/[", "e/[", false, ErrBadPattern, true, true, 0, 0},
+	{"e/[", "e/[", false, errBadPattern, true, true, 0, 0},
 	{"e/]", "e/]", true, nil, true, true, 1, 1},
 	{"e/\\]", "e/]", true, nil, true, !onWindows, 1, 1},
 	{"e/\\{", "e/{", true, nil, true, !onWindows, 1, 1},
@@ -210,8 +221,12 @@ func testMatchWith(t *testing.T, idx int, tt MatchTest) {
 
 	// Match() always uses "/" as the separator
 	ok, err := Match(tt.pattern, tt.testPath)
-	if ok != tt.shouldMatch || err != tt.expectedErr {
-		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+	var expectedErr error = nil
+	if tt.expectedErr != nil {
+		expectedErr = tt.expectedErr("Match")
+	}
+	if ok != tt.shouldMatch || err != expectedErr {
+		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, tt.shouldMatch, expectedErr)
 	}
 
 	if tt.isStandard {
@@ -266,8 +281,12 @@ func testPathMatchWith(t *testing.T, idx int, tt MatchTest) {
 	pattern := filepath.FromSlash(tt.pattern)
 	testPath := filepath.FromSlash(tt.testPath)
 	ok, err := PathMatch(pattern, testPath)
-	if ok != tt.shouldMatch || err != tt.expectedErr {
-		t.Errorf("#%v. PathMatch(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+	var expectedErr error = nil
+	if tt.expectedErr != nil {
+		expectedErr = tt.expectedErr("PathMatch")
+	}
+	if ok != tt.shouldMatch || err != expectedErr {
+		t.Errorf("#%v. PathMatch(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, expectedErr)
 	}
 
 	if tt.isStandard {
@@ -309,8 +328,12 @@ func testPathMatchFakeWith(t *testing.T, idx int, tt MatchTest) {
 	pattern := strings.ReplaceAll(tt.pattern, "/", "\\")
 	testPath := strings.ReplaceAll(tt.testPath, "/", "\\")
 	ok, err := matchWithSeparator(pattern, testPath, '\\', true)
-	if ok != tt.shouldMatch || err != tt.expectedErr {
-		t.Errorf("#%v. PathMatch(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
+	var expectedErr error = nil
+	if tt.expectedErr != nil {
+		expectedErr = tt.expectedErr("PathMatch")
+	}
+	if ok != tt.shouldMatch || err != expectedErr {
+		t.Errorf("#%v. PathMatch(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, expectedErr)
 	}
 }
 
@@ -447,14 +470,12 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 			t.Errorf("#%v. %v(%#q) = %#v - contains %v, but shouldn't", idx, fn, tt.pattern, matches, tt.testPath)
 		}
 	}
-	// For FilepathGlob, we expect the error to be filepath.ErrBadPattern, not path.ErrBadPattern.
-	// This is to be consistent with the behavior of filepath.Glob.
-	expectedErr := tt.expectedErr
-	if fn == "FilepathGlob" && errors.Is(path.ErrBadPattern, expectedErr) {
-		expectedErr = filepath.ErrBadPattern
+	var expectedErr error = nil
+	if tt.expectedErr != nil {
+		expectedErr = tt.expectedErr(fn)
 	}
 	if err != expectedErr {
-		t.Errorf("#%v. %v(%#q) has error '%v', but should be '%v'", idx, fn, tt.pattern, err, tt.expectedErr)
+		t.Errorf("#%v. %v(%#q) has error '%v', but should be '%v'", idx, fn, tt.pattern, err, expectedErr)
 	}
 }
 
