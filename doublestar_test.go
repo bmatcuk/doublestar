@@ -143,6 +143,10 @@ var matchTests = []MatchTest{
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, true, !onWindows, 1, 1},
 	{"working-sym*/*", "working-symlink/c", true, nil, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, nil, false, !onWindows, 2, 2},
+	{".", ".", true, nil, true, !onWindows, 1, 1},
+	{"..", "..", true, nil, true, !onWindows, 1, 1},
+	{"../.", "../.", true, nil, true, !onWindows, 1, 1},
+	{"../..", "../..", true, nil, true, !onWindows, 1, 1},
 }
 
 func TestValidatePattern(t *testing.T) {
