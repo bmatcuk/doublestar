@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -62,7 +63,7 @@ func SplitPattern(p string) (base, pattern string) {
 // pattern may describe hierarchical names such as usr/*/bin/ed.
 //
 // FilepathGlob ignores file system errors such as I/O errors reading
-// directories.  The only possible returned error is ErrBadPattern, reporting
+// directories.  The only possible returned error is filepath.ErrBadPattern, reporting
 // that the pattern is malformed.
 //
 // Note: FilepathGlob is a convenience function that is meant as a drop-in
@@ -81,6 +82,11 @@ func FilepathGlob(pattern string) (matches []string, err error) {
 	base, f := SplitPattern(pattern)
 	fs := os.DirFS(base)
 	if matches, err = Glob(fs, f); err != nil {
+		if errors.Is(ErrBadPattern, err) {
+			// filepath.Glob() returns ErrBadPattern if the pattern is malformed.
+			// Return the same error for consistency.
+			return nil, filepath.ErrBadPattern
+		}
 		return nil, err
 	}
 	for i := range matches {

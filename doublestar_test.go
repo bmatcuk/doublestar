@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+	"errors"
 	"io/fs"
 	"log"
 	"os"
@@ -446,8 +447,14 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 			t.Errorf("#%v. %v(%#q) = %#v - contains %v, but shouldn't", idx, fn, tt.pattern, matches, tt.testPath)
 		}
 	}
-	if err != tt.expectedErr {
-		t.Errorf("#%v. %v(%#q) has error %v, but should be %v", idx, fn, tt.pattern, err, tt.expectedErr)
+	// For FilepathGlob, we expect the error to be filepath.ErrBadPattern, not path.ErrBadPattern.
+	// This is to be consistent with the behavior of filepath.Glob.
+	expectedErr := tt.expectedErr
+	if fn == "FilepathGlob" && errors.Is(path.ErrBadPattern, expectedErr) {
+		expectedErr = filepath.ErrBadPattern
+	}
+	if err != expectedErr {
+		t.Errorf("#%v. %v(%#q) has error '%v', but should be '%v'", idx, fn, tt.pattern, err, tt.expectedErr)
 	}
 }
 
