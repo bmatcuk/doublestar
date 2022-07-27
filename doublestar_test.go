@@ -1,5 +1,3 @@
-// This file is mostly copied from Go's path/match_test.go
-
 package doublestar
 
 import (
@@ -17,7 +15,7 @@ type MatchTest struct {
 	pattern, testPath string // a pattern and path to test the pattern on
 	shouldMatch       bool   // true if the pattern should match the path
 	expectedErr       error  // an expected error
-	isStandard        bool   // pattern doesn't use any doublestar features
+	isStandard        bool   // pattern doesn't use any doublestar features (e.g. '**', '{a,b}')
 	testOnDisk        bool   // true: test pattern against files in "test" directory
 	numResults        int    // number of glob results if testing on disk
 	winNumResults     int    // number of glob results on Windows
@@ -33,7 +31,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, nil, true, false, 0, 0},
 	{"/*", "//", false, nil, true, false, 0, 0},
 	{"abc", "abc", true, nil, true, true, 1, 1},
-	{"*", "abc", true, nil, true, true, 19, 15},
+	{"*", "abc", true, nil, true, true, 20, 16},
 	{"*c", "abc", true, nil, true, true, 2, 2},
 	{"*/", "a/", true, nil, true, false, 0, 0},
 	{"a*", "a", true, nil, true, true, 9, 9},
@@ -54,14 +52,14 @@ var matchTests = []MatchTest{
 	{"ab[^c]", "abc", false, nil, true, true, 0, 0},
 	{"ab[^b-d]", "abc", false, nil, true, true, 0, 0},
 	{"ab[^e-g]", "abc", true, nil, true, true, 1, 1},
-	{"a\\*b", "ab", false, nil, true, true, 0, 0},
+	{"a\\*b", "ab", false, nil, true, !onWindows, 0, 0},
 	{"a?b", "a☺b", true, nil, true, true, 1, 1},
 	{"a[^a]b", "a☺b", true, nil, true, true, 1, 1},
 	{"a[!a]b", "a☺b", true, nil, false, true, 1, 1},
 	{"a???b", "a☺b", false, nil, true, true, 0, 0},
 	{"a[^a][^a][^a]b", "a☺b", false, nil, true, true, 0, 0},
-	{"[a-ζ]*", "α", true, nil, true, true, 17, 15},
-	{"*[a-ζ]", "A", false, nil, true, true, 17, 15},
+	{"[a-ζ]*", "α", true, nil, true, true, 18, 16},
+	{"*[a-ζ]", "A", false, nil, true, true, 18, 16},
 	{"a?b", "a/b", false, nil, true, true, 1, 1},
 	{"a*b", "a/b", false, nil, true, true, 1, 1},
 	{"[\\]a]", "]", true, nil, true, !onWindows, 2, 2},
@@ -111,10 +109,9 @@ var matchTests = []MatchTest{
 	{"a/**/d", "a/b/c/d", true, nil, false, true, 1, 1},
 	{"a/\\**", "a/b/c", false, nil, false, !onWindows, 0, 0},
 	{"a/\\[*\\]", "a/bc", false, nil, true, !onWindows, 0, 0},
-	// this is an odd case: filepath.Glob() will return results
-	{"a//b/c", "a/b/c", false, nil, true, false, 0, 0},
-	{"a/b/c", "a/b//c", false, nil, true, true, 1, 1},
-	// also odd: Glob + filepath.Glob return results
+	// this fails the FilepathGlob test on Windows
+	{"a/b/c", "a/b//c", false, nil, true, !onWindows, 1, 1},
+	// odd: Glob + filepath.Glob return results
 	{"a/", "a", false, nil, true, false, 0, 0},
 	{"ab{c,d}", "abc", true, nil, false, true, 1, 1},
 	{"ab{c,d,*}", "abcde", true, nil, false, true, 5, 5},
@@ -143,6 +140,37 @@ var matchTests = []MatchTest{
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, true, !onWindows, 1, 1},
 	{"working-sym*/*", "working-symlink/c", true, nil, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, nil, false, !onWindows, 2, 2},
+	{"e/**", "e/**", true, nil, false, !onWindows, 11, 6},
+	{"e/**", "e/*", true, nil, false, !onWindows, 11, 6},
+	{"e/**", "e/?", true, nil, false, !onWindows, 11, 6},
+	{"e/**", "e/[", true, nil, false, true, 11, 6},
+	{"e/**", "e/]", true, nil, false, true, 11, 6},
+	{"e/**", "e/[]", true, nil, false, true, 11, 6},
+	{"e/**", "e/{", true, nil, false, true, 11, 6},
+	{"e/**", "e/}", true, nil, false, true, 11, 6},
+	{"e/**", "e/\\", true, nil, false, !onWindows, 11, 6},
+	{"e/*", "e/*", true, nil, true, !onWindows, 10, 5},
+	{"e/?", "e/?", true, nil, true, !onWindows, 7, 4},
+	{"e/?", "e/*", true, nil, true, !onWindows, 7, 4},
+	{"e/?", "e/[", true, nil, true, true, 7, 4},
+	{"e/?", "e/]", true, nil, true, true, 7, 4},
+	{"e/?", "e/{", true, nil, true, true, 7, 4},
+	{"e/?", "e/}", true, nil, true, true, 7, 4},
+	{"e/\\[", "e/[", true, nil, true, !onWindows, 1, 1},
+	{"e/[", "e/[", false, ErrBadPattern, true, true, 0, 0},
+	{"e/]", "e/]", true, nil, true, true, 1, 1},
+	{"e/\\]", "e/]", true, nil, true, !onWindows, 1, 1},
+	{"e/\\{", "e/{", true, nil, true, !onWindows, 1, 1},
+	{"e/\\}", "e/}", true, nil, true, !onWindows, 1, 1},
+	{"e/[\\*\\?]", "e/*", true, nil, true, !onWindows, 2, 2},
+	{"e/[\\*\\?]", "e/?", true, nil, true, !onWindows, 2, 2},
+	{"e/[\\*\\?]", "e/**", false, nil, true, !onWindows, 2, 2},
+	{"e/[\\*\\?]?", "e/**", true, nil, true, !onWindows, 1, 1},
+	{"e/{\\*,\\?}", "e/*", true, nil, false, !onWindows, 2, 2},
+	{"e/{\\*,\\?}", "e/?", true, nil, false, !onWindows, 2, 2},
+	{"e/\\*", "e/*", true, nil, true, !onWindows, 1, 1},
+	{"e/\\?", "e/?", true, nil, true, !onWindows, 1, 1},
+	{"e/\\?", "e/**", false, nil, true, !onWindows, 1, 1},
 	{".", ".", true, nil, true, !onWindows, 1, 1},
 	{"..", "..", true, nil, true, !onWindows, 1, 1},
 	{"../.", "../.", true, nil, true, !onWindows, 1, 1},
@@ -266,7 +294,9 @@ func TestPathMatchFake(t *testing.T) {
 		// PathMatch() which will use the system's separator. As a result, any
 		// patterns that might cause problems on-disk need to also be avoided
 		// here in this test.
-		if tt.testOnDisk && tt.pattern != "\\" {
+		// On Windows, escaping is disabled. Instead, '\\' is treated as path separator.
+		// So it's not possible to match escaped wild characters.
+		if tt.testOnDisk && !strings.Contains(tt.pattern, "\\") {
 			testPathMatchFakeWith(t, idx, tt)
 		}
 	}
@@ -331,6 +361,7 @@ func testGlobWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
 
 	matches, err := Glob(fsys, tt.pattern)
 	verifyGlobResults(t, idx, "Glob", tt, fsys, matches, err)
+	testStandardGlob(t, idx, "Glob", tt, fsys, matches, err)
 }
 
 func TestGlobWalk(t *testing.T) {
@@ -355,6 +386,53 @@ func testGlobWalkWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
 		return nil
 	})
 	verifyGlobResults(t, idx, "GlobWalk", tt, fsys, matches, err)
+	testStandardGlob(t, idx, "GlobWalk", tt, fsys, matches, err)
+}
+
+func testStandardGlob(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.FS, matches []string, err error) {
+	if tt.isStandard {
+		stdMatches, stdErr := fs.Glob(fsys, tt.pattern)
+		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. %v(%#q) != fs.Glob(...). Got %#v, %v want %#v, %v", idx, fn, tt.pattern, matches, err, stdMatches, stdErr)
+		}
+	}
+}
+
+func TestFilepathGlob(t *testing.T) {
+	fsys := os.DirFS("test")
+
+	// The patterns are relative to the "test" sub-directory.
+	defer func() {
+		os.Chdir("..")
+	}()
+	os.Chdir("test")
+
+	for idx, tt := range matchTests {
+		if tt.testOnDisk {
+			ttmod := tt
+			ttmod.pattern = filepath.FromSlash(tt.pattern)
+			ttmod.testPath = filepath.FromSlash(tt.testPath)
+			testFilepathGlobWith(t, idx, ttmod, fsys)
+		}
+	}
+}
+
+func testFilepathGlobWith(t *testing.T, idx int, tt MatchTest, fsys fs.FS) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("#%v. Glob(%#q) panicked: %#v", idx, tt.pattern, r)
+		}
+	}()
+
+	matches, err := FilepathGlob(tt.pattern)
+	verifyGlobResults(t, idx, "FilepathGlob", tt, fsys, matches, err)
+
+	if tt.isStandard {
+		stdMatches, stdErr := filepath.Glob(tt.pattern)
+		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. FilepathGlob(%#q) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, tt.pattern, matches, err, stdMatches, stdErr)
+		}
+	}
 }
 
 func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.FS, matches []string, err error) {
@@ -363,7 +441,7 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 		numResults = tt.winNumResults
 	}
 	if len(matches) != numResults {
-		t.Errorf("#%v. %v(%#q) = %#v - should have %#v results", idx, fn, tt.pattern, matches, tt.numResults)
+		t.Errorf("#%v. %v(%#q) = %#v - should have %#v results, got %#v", idx, fn, tt.pattern, matches, numResults, len(matches))
 	}
 	if inSlice(tt.testPath, matches) != tt.shouldMatch {
 		if tt.shouldMatch {
@@ -375,11 +453,25 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.F
 	if err != tt.expectedErr {
 		t.Errorf("#%v. %v(%#q) has error %v, but should be %v", idx, fn, tt.pattern, err, tt.expectedErr)
 	}
+}
 
-	if tt.isStandard {
-		stdMatches, stdErr := fs.Glob(fsys, tt.pattern)
-		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
-			t.Errorf("#%v. %v(%#q) != fs.Glob(...). Got %#v, %v want %#v, %v", idx, fn, tt.pattern, matches, err, stdMatches, stdErr)
+func TestGlobSorted(t *testing.T) {
+	fsys := os.DirFS("test")
+	expected := []string{"a", "abc", "abcd", "abcde", "abxbbxdbxebxczzx", "abxbbxdbxebxczzy", "axbxcxdxe", "axbxcxdxexxx", "a☺b"}
+	matches, err := Glob(fsys, "a*")
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+		return
+	}
+
+	if len(matches) != len(expected) {
+		t.Errorf("Glob returned %#v; expected %#v", matches, expected)
+		return
+	}
+	for idx, match := range matches {
+		if match != expected[idx] {
+			t.Errorf("Glob returned %#v; expected %#v", matches, expected)
+			return
 		}
 	}
 }
@@ -488,27 +580,6 @@ func symlink(oldname, newname string) {
 	}
 }
 
-func TestGlobSorted(t *testing.T) {
-	fsys := os.DirFS("test")
-	expected := []string{"a", "abc", "abcd", "abcde", "abxbbxdbxebxczzx", "abxbbxdbxebxczzy", "axbxcxdxe", "axbxcxdxexxx", "a☺b"}
-	matches, err := Glob(fsys, "a*")
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
-		return
-	}
-
-	if len(matches) != len(expected) {
-		t.Errorf("Glob returned %#v; expected %#v", matches, expected)
-		return
-	}
-	for idx, match := range matches {
-		if match != expected[idx] {
-			t.Errorf("Glob returned %#v; expected %#v", matches, expected)
-			return
-		}
-	}
-}
-
 func TestMain(m *testing.M) {
 	// create the test directory
 	mkdirp("test", "a", "b", "c")
@@ -517,6 +588,7 @@ func TestMain(m *testing.M) {
 	mkdirp("test", "axbxcxdxe", "xxx")
 	mkdirp("test", "axbxcxdxexxx")
 	mkdirp("test", "b")
+	mkdirp("test", "e")
 
 	// create test files
 	touch("test", "a", "abc")
@@ -540,10 +612,22 @@ func TestMain(m *testing.M) {
 	touch("test", "α")
 	touch("test", "abc", "【test】.txt")
 
+	touch("test", "e", "[")
+	touch("test", "e", "]")
+	touch("test", "e", "{")
+	touch("test", "e", "}")
+	touch("test", "e", "[]")
+
 	if !onWindows {
 		// these files/symlinks won't work on Windows
 		touch("test", "-")
 		touch("test", "]")
+		touch("test", "e", "*")
+		touch("test", "e", "**")
+		touch("test", "e", "****")
+		touch("test", "e", "?")
+		touch("test", "e", "\\")
+
 		symlink("../axbxcxdxe/", "test/b/symlink-dir")
 		symlink("/tmp/nonexistant-file-20160902155705", "test/broken-symlink")
 		symlink("a/b", "test/working-symlink")

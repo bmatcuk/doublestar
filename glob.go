@@ -49,8 +49,10 @@ func doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool) (matches 
 	if patternStart == -1 {
 		// pattern doesn't contain any meta characters - does a file matching the
 		// pattern exist?
-		if exists(fsys, pattern) {
-			matches = append(matches, pattern)
+		// The pattern may contain escaped wildcard characters for an exact path match.
+		path := unescapeMeta(pattern)
+		if exists(fsys, path) {
+			matches = append(matches, path)
 			return
 		} else {
 			return
@@ -318,10 +320,14 @@ func isPathDir(fsys fs.FS, name string) bool {
 
 // Returns whether or not the given DirEntry is a directory. If the DirEntry
 // represents a symbolic link, the link is followed by running fs.Stat() on
-// `path.Join(dir, name)`
-func isDir(fsys fs.FS, dir string, name string, info fs.DirEntry) bool {
+// `path.Join(dir, name)` (if dir is "", name will be used without joining)
+func isDir(fsys fs.FS, dir, name string, info fs.DirEntry) bool {
 	if (info.Type() & fs.ModeSymlink) > 0 {
-		finfo, err := fs.Stat(fsys, path.Join(dir, name))
+		p := name
+		if dir != "" {
+			p = path.Join(dir, name)
+		}
+		finfo, err := fs.Stat(fsys, p)
 		if err != nil {
 			return false
 		}
