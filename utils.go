@@ -88,6 +88,11 @@ func FilepathGlob(pattern string) (matches []string, err error) {
 		// of forward slashes, no matter what the system uses
 		matches[i] = filepath.FromSlash(path.Join(base, matches[i]))
 	}
+	if len(matches) == 0 {
+		if _, err := os.Stat(pattern); err == nil {
+			matches = []string{pattern}
+		}
+	}
 	return
 }
 
