@@ -179,8 +179,8 @@ var matchFilepathGlobTests = []MatchTest{
 	{"../.", "..", true, nil, true, !onWindows, 1, 1},
 	{"../..", "../..", true, nil, true, !onWindows, 1, 1},
 	{"/", "/", true, nil, true, !onWindows, 1, 1},
-	{"./", "./", true, nil, true, !onWindows, 1, 1},
-	{"/.", "/.", true, nil, true, !onWindows, 1, 1},
+	{"./", ".", true, nil, true, !onWindows, 1, 1},
+	{"/.", "/", true, nil, true, !onWindows, 1, 1},
 }
 
 func TestValidatePattern(t *testing.T) {
