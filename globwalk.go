@@ -57,7 +57,7 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 		// pattern exist?
 		// The pattern may contain escaped wildcard characters for an exact path match.
 		path := unescapeMeta(pattern)
-		info, err := fs.Stat(fsys, path)
+		info, err := lstat(fsys, path)
 		if err == nil {
 			err = fn(path, dirEntryFromFileInfo(info))
 			if err == SkipDir {
@@ -220,7 +220,7 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 		// pattern can be an empty string if the original pattern ended in a slash,
 		// in which case, we should just return dir, but only if it actually exists
 		// and it's a directory (or a symlink to a directory)
-		info, err := fs.Stat(fsys, dir)
+		info, err := lstat(fsys, dir)
 		if err != nil || !info.IsDir() {
 			return nil
 		}
@@ -234,7 +234,7 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 
 	if pattern == "**" {
 		// `**` can match *this* dir
-		info, err := fs.Stat(fsys, dir)
+		info, err := lstat(fsys, dir)
 		if err != nil || !info.IsDir() {
 			return nil
 		}

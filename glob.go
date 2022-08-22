@@ -303,7 +303,7 @@ func indexMatchedOpeningAlt(s string) int {
 
 // Returns true if the path exists
 func exists(fsys fs.FS, name string) bool {
-	if _, err := fs.Stat(fsys, name); err != nil {
+	if _, err := lstat(fsys, name); err != nil {
 		return false
 	}
 	return true
@@ -311,23 +311,21 @@ func exists(fsys fs.FS, name string) bool {
 
 // Returns true if the path is a directory, or a symlink to a directory
 func isPathDir(fsys fs.FS, name string) bool {
-	info, err := fs.Stat(fsys, name)
+	info, err := lstat(fsys, name)
 	if err != nil {
 		return false
 	}
 	return info.IsDir()
 }
 
-// Returns whether or not the given DirEntry is a directory. If the DirEntry
-// represents a symbolic link, the link is followed by running fs.Stat() on
-// `path.Join(dir, name)` (if dir is "", name will be used without joining)
+// Returns whether or not the given DirEntry is a directory.
 func isDir(fsys fs.FS, dir, name string, info fs.DirEntry) bool {
 	if (info.Type() & fs.ModeSymlink) > 0 {
 		p := name
 		if dir != "" {
 			p = path.Join(dir, name)
 		}
-		finfo, err := fs.Stat(fsys, p)
+		finfo, err := lstat(fsys, p)
 		if err != nil {
 			return false
 		}
@@ -364,6 +362,17 @@ func buildAlt(prefix, pattern string, startIdx, openingIdx, currentIdx, nextIdx,
 		buf = append(buf, pattern[afterIdx:]...)
 	}
 	return string(buf)
+}
+
+// lstat returns fsys.Lstat(name) if fsys implements Lstat, or fs.Stat(fsys,
+// name) otherwise.
+func lstat(fsys fs.FS, name string) (fs.FileInfo, error) {
+	if lstater, ok := fsys.(interface {
+		Lstat(string) (fs.FileInfo, error)
+	}); ok {
+		return lstater.Lstat(name)
+	}
+	return fs.Stat(fsys, name)
 }
 
 // Running alts can produce results that are not sorted, and, worse, can cause

@@ -135,8 +135,7 @@ var matchTests = []MatchTest{
 	{"**/*.txt", "abc/【test】.txt", true, nil, false, true, 1, 1},
 	{"**/【*", "abc/【test】.txt", true, nil, false, true, 1, 1},
 	{"**/{a,b}", "a/b", true, nil, false, true, 5, 5},
-	// unfortunately, io/fs can't handle this, so neither can Glob =(
-	{"broken-symlink", "broken-symlink", true, nil, true, false, 1, 1},
+	{"broken-sym*", "broken-symlink", true, nil, true, !onWindows, 1, 0},
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, true, !onWindows, 1, 1},
 	{"working-sym*/*", "working-symlink/c", true, nil, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, nil, false, !onWindows, 2, 2},
