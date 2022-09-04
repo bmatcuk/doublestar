@@ -56,6 +56,16 @@ import "github.com/bmatcuk/doublestar/v4"
 
 ## Usage
 
+### ErrBadPattern
+
+```go
+doublestar.ErrBadPattern
+```
+
+Returned by various functions to report that the pattern is malformed. At the
+moment, this value is equal to `path.ErrBadPattern`, but, for portability, this
+equivalence should probably not be relied upon.
+
 ### Match
 
 ```go
@@ -67,13 +77,16 @@ Match returns true if `name` matches the file name `pattern` ([see
 and may be relative or absolute.
 
 Match requires pattern to match all of name, not just a substring. The only
-possible returned error is ErrBadPattern, when pattern is malformed.
+possible returned error is `ErrBadPattern`, when pattern is malformed.
 
 Note: this is meant as a drop-in replacement for `path.Match()` which always
 uses `'/'` as the path separator. If you want to support systems which use a
 different path separator (such as Windows), what you want is `PathMatch()`.
 Alternatively, you can run `filepath.ToSlash()` on both pattern and name and
 then use this function.
+
+Note: users should _not_ count on the returned error,
+`doublestar.ErrBadPattern`, being equal to `path.ErrBadPattern`.
 
 
 ### PathMatch
@@ -103,7 +116,7 @@ matching file. The syntax of patterns is the same as in `Match()`. The pattern
 may describe hierarchical names such as `usr/*/bin/ed`.
 
 Glob ignores file system errors such as I/O errors reading directories.  The
-only possible returned error is ErrBadPattern, reporting that the pattern is
+only possible returned error is `ErrBadPattern`, reporting that the pattern is
 malformed.
 
 Note: this is meant as a drop-in replacement for `io/fs.Glob()`. Like
@@ -117,6 +130,9 @@ will return no results and no errors. This seems to be a [conscious
 decision](https://github.com/golang/go/issues/44092#issuecomment-774132549),
 even if counter-intuitive. You can use [SplitPattern] to divide a pattern into
 a base path (to initialize an `FS` object) and pattern.
+
+Note: users should _not_ count on the returned error,
+`doublestar.ErrBadPattern`, being equal to `path.ErrBadPattern`.
 
 ### GlobWalk
 
@@ -142,7 +158,7 @@ directory, GlobWalk will not recurse into it. If the current path is not a
 directory, the rest of the parent directory will be skipped.
 
 GlobWalk ignores file system errors such as I/O errors reading directories.
-GlobWalk may return ErrBadPattern, reporting that the pattern is malformed.
+GlobWalk may return `ErrBadPattern`, reporting that the pattern is malformed.
 Additionally, if the callback function `fn` returns an error, GlobWalk will
 exit immediately and return that error.
 
@@ -150,6 +166,9 @@ Like Glob(), this function assumes that your pattern uses `/` as the path
 separator even if that's not correct for your OS (like Windows). If you aren't
 sure if that's the case, you can use filepath.ToSlash() on your pattern before
 calling GlobWalk().
+
+Note: users should _not_ count on the returned error,
+`doublestar.ErrBadPattern`, being equal to `path.ErrBadPattern`.
 
 ### FilepathGlob
 
@@ -162,7 +181,7 @@ no matching file. The syntax of pattern is the same as in Match(). The pattern
 may describe hierarchical names such as usr/*/bin/ed.
 
 FilepathGlob ignores file system errors such as I/O errors reading directories.
-The only possible returned error is ErrBadPattern, reporting that the pattern
+The only possible returned error is `ErrBadPattern`, reporting that the pattern
 is malformed.
 
 Note: FilepathGlob is a convenience function that is meant as a drop-in
@@ -176,6 +195,9 @@ complication of io/fs. Basically, it:
 
 Returned paths will use the system's path separator, just like
 `filepath.Glob()`.
+
+Note: the returned error `doublestar.ErrBadPattern` is not equal to
+`filepath.ErrBadPattern`.
 
 ### SplitPattern
 

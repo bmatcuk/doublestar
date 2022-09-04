@@ -75,6 +75,10 @@ func SplitPattern(p string) (base, pattern string) {
 //
 // Returned paths will use the system's path separator, just like
 // `filepath.Glob()`.
+//
+// Note: the returned error doublestar.ErrBadPattern is not equal to
+// filepath.ErrBadPattern.
+//
 func FilepathGlob(pattern string) (matches []string, err error) {
 	pattern = filepath.Clean(pattern)
 	pattern = filepath.ToSlash(pattern)

@@ -23,6 +23,9 @@ import (
 // will return no results and no errors. You can use SplitPattern to divide a
 // pattern into a base path (to initialize an `FS` object) and pattern.
 //
+// Note: users should _not_ count on the returned error,
+// doublestar.ErrBadPattern, being equal to path.ErrBadPattern.
+//
 func Glob(fsys fs.FS, pattern string) ([]string, error) {
 	if !ValidatePattern(pattern) {
 		return nil, ErrBadPattern
