@@ -42,6 +42,9 @@ type GlobWalkFunc func(path string, d fs.DirEntry) error
 // aren't sure if that's the case, you can use filepath.ToSlash() on your
 // pattern before calling GlobWalk().
 //
+// Note: users should _not_ count on the returned error,
+// doublestar.ErrBadPattern, being equal to path.ErrBadPattern.
+//
 func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc) error {
 	if !ValidatePattern(pattern) {
 		return ErrBadPattern
