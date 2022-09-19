@@ -472,6 +472,44 @@ func TestGlobSorted(t *testing.T) {
 	}
 }
 
+func TestFailOnIOErrors(t *testing.T) {
+	fsys := os.DirFS("test")
+
+	patterns := []string{
+		"broken-symlink",
+		"**",
+		"broken-*",
+		"non-existing-path",
+		"non-existing-path/file",
+		"non-existing-path/*",
+		"non-existing-path/**",
+	}
+
+	for _, p := range patterns {
+		t.Run("glob_"+p, func(t *testing.T) {
+			matches, err := Glob(fsys, p, WithFailOnIOErrors())
+			if len(matches) != 0 {
+				t.Errorf("expected 0 matches, got: %d: (%+v)", len(matches), matches)
+			}
+			if err == nil {
+				t.Fatal("expected an error but got none")
+			}
+			t.Logf("got expected error: %q", err)
+		})
+
+		t.Run("globwalk_"+p, func(t *testing.T) {
+			err := GlobWalk(fsys, p,
+				func(_ string, _ fs.DirEntry) error { return nil },
+				WithFailOnIOErrors(),
+			)
+			if err == nil {
+				t.Fatal("expected an error but got none")
+			}
+			t.Logf("got expected error: %q", err)
+		})
+	}
+}
+
 func BenchmarkGlob(b *testing.B) {
 	fsys := os.DirFS("test")
 	b.ReportAllocs()
