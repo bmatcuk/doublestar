@@ -12,6 +12,7 @@ import (
 // Glob ignores file system errors such as I/O errors reading directories by
 // default. The only possible returned error is ErrBadPattern, reporting that
 // the pattern is malformed.
+//
 // To enable aborting on I/O errors, the WithFailOnIOErrors option can be
 // passed.
 //
@@ -27,7 +28,8 @@ import (
 //
 // Note: users should _not_ count on the returned error,
 // doublestar.ErrBadPattern, being equal to path.ErrBadPattern.
-func Glob(fsys fs.FS, pattern string, opts ...Opt) ([]string, error) {
+//
+func Glob(fsys fs.FS, pattern string, opts ...GlobOption) ([]string, error) {
 	if !ValidatePattern(pattern) {
 		return nil, ErrBadPattern
 	}
@@ -65,7 +67,6 @@ func (g *glob) doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool)
 
 		if pathExists {
 			matches = append(matches, path)
-			return
 		}
 
 		return
@@ -209,11 +210,14 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 	var matched bool
 	for _, info := range dirs {
 		name := info.Name()
-		isDir, err := g.isDir(fsys, dir, name, info)
-		if err != nil {
-			return nil, err
+		matched = canMatchFiles
+		if !matched {
+			matched, e = g.isDir(fsys, dir, name, info)
+			if e != nil {
+				return
+			}
 		}
-		if canMatchFiles || isDir {
+		if matched {
 			matched, e = matchWithSeparator(pattern, name, '/', false)
 			if e != nil {
 				return
