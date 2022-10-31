@@ -32,8 +32,10 @@ type GlobWalkFunc func(path string, d fs.DirEntry) error
 // path _is_ a directory, GlobWalk will not recurse into it. If the current
 // path is not a directory, the rest of the parent directory will be skipped.
 //
-// GlobWalk ignores file system errors such as I/O errors reading directories.
-// GlobWalk may return ErrBadPattern, reporting that the pattern is malformed.
+// GlobWalk ignores file system errors such as I/O errors reading directories by
+// default. GlobWalk may return ErrBadPattern, reporting that the pattern is
+// malformed. To enable aborting on I/O errors, the WithFailOnIOErrors option
+// can be passed.
 // Additionally, if the callback function `fn` returns an error, GlobWalk will
 // exit immediately and return that error.
 //
@@ -44,16 +46,17 @@ type GlobWalkFunc func(path string, d fs.DirEntry) error
 //
 // Note: users should _not_ count on the returned error,
 // doublestar.ErrBadPattern, being equal to path.ErrBadPattern.
-//
-func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc) error {
+func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...Opt) error {
 	if !ValidatePattern(pattern) {
 		return ErrBadPattern
 	}
-	return doGlobWalk(fsys, pattern, true, fn)
+	g := newGlob(opts...)
+
+	return g.doGlobWalk(fsys, pattern, true, fn)
 }
 
 // Actually execute GlobWalk
-func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) error {
+func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) error {
 	patternStart := indexMeta(pattern)
 	if patternStart == -1 {
 		// pattern doesn't contain any meta characters - does a file matching the
@@ -68,8 +71,7 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 			}
 			return err
 		} else {
-			// ignore IO errors
-			return nil
+			return g.forwardErrIfFailOnIOErrors(err)
 		}
 	}
 
@@ -84,7 +86,7 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 				splitIdx = lastIndexSlash(pattern[:splitIdx])
 			} else {
 				// otherwise, we have to handle the alts:
-				return globAltsWalk(fsys, pattern, openingIdx, splitIdx, firstSegment, fn)
+				return g.globAltsWalk(fsys, pattern, openingIdx, splitIdx, firstSegment, fn)
 			}
 		}
 
@@ -96,11 +98,11 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 	// characters. They would be equal if they are both -1, which means `dir`
 	// will be ".", and we know that doesn't have meta characters either.
 	if splitIdx <= patternStart {
-		return globDirWalk(fsys, dir, pattern, firstSegment, fn)
+		return g.globDirWalk(fsys, dir, pattern, firstSegment, fn)
 	}
 
-	return doGlobWalk(fsys, dir, false, func(p string, d fs.DirEntry) error {
-		if err := globDirWalk(fsys, p, pattern, firstSegment, fn); err != nil {
+	return g.doGlobWalk(fsys, dir, false, func(p string, d fs.DirEntry) error {
+		if err := g.globDirWalk(fsys, p, pattern, firstSegment, fn); err != nil {
 			return err
 		}
 		return nil
@@ -109,22 +111,22 @@ func doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) 
 
 // handle alts in the glob pattern - `openingIdx` and `closingIdx` are the
 // indexes of `{` and `}`, respectively
-func globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstSegment bool, fn GlobWalkFunc) (err error) {
+func (g *glob) globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstSegment bool, fn GlobWalkFunc) (err error) {
 	var matches []DirEntryWithFullPath
 	startIdx := 0
 	afterIdx := closingIdx + 1
 	splitIdx := lastIndexSlashOrAlt(pattern[:openingIdx])
 	if splitIdx == -1 || pattern[splitIdx] == '}' {
 		// no common prefix
-		matches, err = doGlobAltsWalk(fsys, "", pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, matches)
+		matches, err = g.doGlobAltsWalk(fsys, "", pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, matches)
 		if err != nil {
 			return
 		}
 	} else {
 		// our alts have a common prefix that we can process first
 		startIdx = splitIdx + 1
-		err = doGlobWalk(fsys, pattern[:splitIdx], false, func(p string, d fs.DirEntry) (e error) {
-			matches, e = doGlobAltsWalk(fsys, p, pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, matches)
+		err = g.doGlobWalk(fsys, pattern[:splitIdx], false, func(p string, d fs.DirEntry) (e error) {
+			matches, e = g.doGlobAltsWalk(fsys, p, pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, matches)
 			return e
 		})
 		if err != nil {
@@ -154,7 +156,11 @@ func globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstS
 		}
 		if err = fn(m.Path, m.Entry); err != nil {
 			if err == SkipDir {
-				if isDir(fsys, "", m.Path, m.Entry) {
+				isDir, err := g.isDir(fsys, "", m.Path, m.Entry)
+				if err != nil {
+					return err
+				}
+				if isDir {
 					// append a slash to guarantee `skip` will be treated as a parent dir
 					skip = m.Path + "/"
 				} else {
@@ -173,7 +179,7 @@ func globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstS
 }
 
 // runs actual matching for alts
-func doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingIdx, closingIdx, afterIdx int, firstSegment bool, m []DirEntryWithFullPath) (matches []DirEntryWithFullPath, err error) {
+func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingIdx, closingIdx, afterIdx int, firstSegment bool, m []DirEntryWithFullPath) (matches []DirEntryWithFullPath, err error) {
 	matches = m
 	matchesLen := len(m)
 	patIdx := openingIdx + 1
@@ -186,7 +192,7 @@ func doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingIdx, closing
 		}
 
 		alt := buildAlt(d, pattern, startIdx, openingIdx, patIdx, nextIdx, afterIdx)
-		err = doGlobWalk(fsys, alt, firstSegment, func(p string, d fs.DirEntry) error {
+		err = g.doGlobWalk(fsys, alt, firstSegment, func(p string, d fs.DirEntry) error {
 			// insertion sort, ignoring dups
 			insertIdx := matchesLen
 			for insertIdx > 0 && matches[insertIdx-1].Path > p {
@@ -218,13 +224,16 @@ func doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingIdx, closing
 	return
 }
 
-func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
+func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
 	if pattern == "" {
 		// pattern can be an empty string if the original pattern ended in a slash,
 		// in which case, we should just return dir, but only if it actually exists
 		// and it's a directory (or a symlink to a directory)
 		info, err := fs.Stat(fsys, dir)
-		if err != nil || !info.IsDir() {
+		if err != nil {
+			return g.forwardErrIfFailOnIOErrors(err)
+		}
+		if !info.IsDir() {
 			return nil
 		}
 
@@ -238,7 +247,10 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 	if pattern == "**" {
 		// `**` can match *this* dir
 		info, err := fs.Stat(fsys, dir)
-		if err != nil || !info.IsDir() {
+		if err != nil {
+			return g.forwardErrIfFailOnIOErrors(err)
+		}
+		if !info.IsDir() {
 			return nil
 		}
 		if e = fn(dir, dirEntryFromFileInfo(info)); e != nil {
@@ -247,19 +259,22 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 			}
 			return
 		}
-		return globDoubleStarWalk(fsys, dir, canMatchFiles, fn)
+		return g.globDoubleStarWalk(fsys, dir, canMatchFiles, fn)
 	}
 
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		// ignore IO errors
-		return nil
+		return g.forwardErrIfFailOnIOErrors(err)
 	}
 
 	var matched bool
 	for _, info := range dirs {
 		name := info.Name()
-		if canMatchFiles || isDir(fsys, dir, name, info) {
+		isDir, err := g.isDir(fsys, dir, name, info)
+		if err != nil {
+			return err
+		}
+		if canMatchFiles || isDir {
 			matched, e = matchWithSeparator(pattern, name, '/', false)
 			if e != nil {
 				return
@@ -279,17 +294,21 @@ func globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWal
 }
 
 // recursively walk files/directories in a directory
-func globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
+func (g *glob) globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		// ignore IO errors
-		return
+		return g.forwardErrIfFailOnIOErrors(err)
 	}
 
 	// `**` can match *this* dir, so add it
 	for _, info := range dirs {
 		name := info.Name()
-		if isDir(fsys, dir, name, info) {
+		isDir, err := g.isDir(fsys, dir, name, info)
+		if err != nil {
+			return err
+		}
+
+		if isDir {
 			p := path.Join(dir, name)
 			if e = fn(p, info); e != nil {
 				if e == SkipDir {
@@ -298,7 +317,7 @@ func globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkF
 				}
 				return
 			}
-			if e = globDoubleStarWalk(fsys, p, canMatchFiles, fn); e != nil {
+			if e = g.globDoubleStarWalk(fsys, p, canMatchFiles, fn); e != nil {
 				return
 			}
 		} else if canMatchFiles {
