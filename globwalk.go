@@ -32,10 +32,13 @@ type GlobWalkFunc func(path string, d fs.DirEntry) error
 // path _is_ a directory, GlobWalk will not recurse into it. If the current
 // path is not a directory, the rest of the parent directory will be skipped.
 //
-// GlobWalk ignores file system errors such as I/O errors reading directories by
-// default. GlobWalk may return ErrBadPattern, reporting that the pattern is
-// malformed. To enable aborting on I/O errors, the WithFailOnIOErrors option
-// can be passed.
+// GlobWalk ignores file system errors such as I/O errors reading directories
+// by default. GlobWalk may return ErrBadPattern, reporting that the pattern is
+// malformed.
+//
+// To enable aborting on I/O errors, the WithFailOnIOErrors option can be
+// passed.
+//
 // Additionally, if the callback function `fn` returns an error, GlobWalk will
 // exit immediately and return that error.
 //
@@ -46,12 +49,13 @@ type GlobWalkFunc func(path string, d fs.DirEntry) error
 //
 // Note: users should _not_ count on the returned error,
 // doublestar.ErrBadPattern, being equal to path.ErrBadPattern.
-func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...Opt) error {
+//
+func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) error {
 	if !ValidatePattern(pattern) {
 		return ErrBadPattern
 	}
-	g := newGlob(opts...)
 
+	g := newGlob(opts...)
 	return g.doGlobWalk(fsys, pattern, true, fn)
 }
 
@@ -270,11 +274,14 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, 
 	var matched bool
 	for _, info := range dirs {
 		name := info.Name()
-		isDir, err := g.isDir(fsys, dir, name, info)
-		if err != nil {
-			return err
+		matched = canMatchFiles
+		if !matched {
+			matched, e = g.isDir(fsys, dir, name, info)
+			if e != nil {
+				return e
+			}
 		}
-		if canMatchFiles || isDir {
+		if matched {
 			matched, e = matchWithSeparator(pattern, name, '/', false)
 			if e != nil {
 				return
