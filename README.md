@@ -155,7 +155,7 @@ Note: users should _not_ count on the returned error,
 ```go
 type GlobWalkFunc func(path string, d fs.DirEntry) error
 
-func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc) error
+func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) error
 ```
 
 GlobWalk calls the callback function `fn` for every file matching pattern.  The
@@ -194,7 +194,7 @@ Note: users should _not_ count on the returned error,
 ### FilepathGlob
 
 ```go
-func FilepathGlob(pattern string) (matches []string, err error)
+func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err error)
 ```
 
 FilepathGlob returns the names of all files matching pattern or nil if there is
