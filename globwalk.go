@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -67,16 +68,14 @@ func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn Glob
 		// pattern exist?
 		// The pattern may contain escaped wildcard characters for an exact path match.
 		path := unescapeMeta(pattern)
-		info, err := fs.Stat(fsys, path)
-		if err == nil {
+		info, pathExists, err := g.exists(fsys, path)
+		if pathExists {
 			err = fn(path, dirEntryFromFileInfo(info))
 			if err == SkipDir {
 				err = nil
 			}
-			return err
-		} else {
-			return g.forwardErrIfFailOnIOErrors(err)
 		}
+		return err
 	}
 
 	dir := "."
@@ -250,11 +249,11 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, 
 
 	if pattern == "**" {
 		// `**` can match *this* dir
-		info, err := fs.Stat(fsys, dir)
+		info, dirExists, err := g.exists(fsys, dir)
 		if err != nil {
 			return g.forwardErrIfFailOnIOErrors(err)
 		}
-		if !info.IsDir() {
+		if !dirExists || !info.IsDir() {
 			return nil
 		}
 		if e = fn(dir, dirEntryFromFileInfo(info)); e != nil {
@@ -268,23 +267,26 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, 
 
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return
+		}
 		return g.forwardErrIfFailOnIOErrors(err)
 	}
 
 	var matched bool
 	for _, info := range dirs {
 		name := info.Name()
-		matched = canMatchFiles
-		if !matched {
-			matched, e = g.isDir(fsys, dir, name, info)
-			if e != nil {
-				return e
-			}
+		matched, e = matchWithSeparator(pattern, name, '/', false)
+		if e != nil {
+			return
 		}
 		if matched {
-			matched, e = matchWithSeparator(pattern, name, '/', false)
-			if e != nil {
-				return
+			matched = canMatchFiles
+			if !matched {
+				matched, e = g.isDir(fsys, dir, name, info)
+				if e != nil {
+					return e
+				}
 			}
 			if matched {
 				if e = fn(path.Join(dir, name), info); e != nil {
@@ -304,6 +306,9 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, 
 func (g *glob) globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return
+		}
 		return g.forwardErrIfFailOnIOErrors(err)
 	}
 

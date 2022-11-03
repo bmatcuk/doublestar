@@ -38,13 +38,14 @@ var matchTests = []MatchTest{
 	{"a*", "a", true, nil, false, true, true, 9, 9},
 	{"a*", "abc", true, nil, false, true, true, 9, 9},
 	{"a*", "ab/c", false, nil, false, true, true, 9, 9},
-	{"a*/b", "abc/b", true, nil, !onWindows, true, true, 2, 2},
-	{"a*/b", "a/c/b", false, nil, !onWindows, true, true, 2, 2},
+	{"a*/b", "abc/b", true, nil, false, true, true, 2, 2},
+	{"a*/b", "a/c/b", false, nil, false, true, true, 2, 2},
+	{"a*/c/", "a/b", false, nil, false, false, true, 1, 1},
 	{"a*b*c*d*e*", "axbxcxdxe", true, nil, false, true, true, 3, 3},
-	{"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil, !onWindows, true, true, 2, 2},
-	{"a*b*c*d*e*/f", "axbxcxdxexxx/f", true, nil, !onWindows, true, true, 2, 2},
-	{"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", false, nil, !onWindows, true, true, 2, 2},
-	{"a*b*c*d*e*/f", "axbxcxdxexxx/fff", false, nil, !onWindows, true, true, 2, 2},
+	{"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil, false, true, true, 2, 2},
+	{"a*b*c*d*e*/f", "axbxcxdxexxx/f", true, nil, false, true, true, 2, 2},
+	{"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", false, nil, false, true, true, 2, 2},
+	{"a*b*c*d*e*/f", "axbxcxdxexxx/fff", false, nil, false, true, true, 2, 2},
 	{"a*b?c*x", "abxbbxdbxebxczzx", true, nil, false, true, true, 2, 2},
 	{"a*b?c*x", "abxbbxdbxebxczzy", false, nil, false, true, true, 2, 2},
 	{"ab[c]", "abc", true, nil, false, true, true, 1, 1},
@@ -53,7 +54,7 @@ var matchTests = []MatchTest{
 	{"ab[^c]", "abc", false, nil, false, true, true, 0, 0},
 	{"ab[^b-d]", "abc", false, nil, false, true, true, 0, 0},
 	{"ab[^e-g]", "abc", true, nil, false, true, true, 1, 1},
-	{"a\\*b", "ab", false, nil, true, true, !onWindows, 0, 0},
+	{"a\\*b", "ab", false, nil, false, true, !onWindows, 0, 0},
 	{"a?b", "a☺b", true, nil, false, true, true, 1, 1},
 	{"a[^a]b", "a☺b", true, nil, false, true, true, 1, 1},
 	{"a[!a]b", "a☺b", true, nil, false, false, true, 1, 1},
@@ -99,12 +100,12 @@ var matchTests = []MatchTest{
 	{"a/**", "a/", true, nil, false, false, false, 7, 7},
 	{"a/**", "a/b", true, nil, false, false, true, 7, 7},
 	{"a/**", "a/b/c", true, nil, false, false, true, 7, 7},
-	{"**/c", "c", true, nil, !onWindows, false, true, 5, 4},
-	{"**/c", "b/c", true, nil, !onWindows, false, true, 5, 4},
-	{"**/c", "a/b/c", true, nil, !onWindows, false, true, 5, 4},
-	{"**/c", "a/b", false, nil, !onWindows, false, true, 5, 4},
-	{"**/c", "abcd", false, nil, !onWindows, false, true, 5, 4},
-	{"**/c", "a/abc", false, nil, !onWindows, false, true, 5, 4},
+	{"**/c", "c", true, nil, false, false, true, 5, 4},
+	{"**/c", "b/c", true, nil, false, false, true, 5, 4},
+	{"**/c", "a/b/c", true, nil, false, false, true, 5, 4},
+	{"**/c", "a/b", false, nil, false, false, true, 5, 4},
+	{"**/c", "abcd", false, nil, false, false, true, 5, 4},
+	{"**/c", "a/abc", false, nil, false, false, true, 5, 4},
 	{"a/**/b", "a/b", true, nil, false, false, true, 2, 2},
 	{"a/**/c", "a/b/c", true, nil, false, false, true, 2, 2},
 	{"a/**/d", "a/b/c/d", true, nil, false, false, true, 1, 1},
@@ -114,8 +115,8 @@ var matchTests = []MatchTest{
 	{"a/b/c", "a/b//c", false, nil, false, true, !onWindows, 1, 1},
 	// odd: Glob + filepath.Glob return results
 	{"a/", "a", false, nil, false, true, false, 0, 0},
-	{"ab{c,d}", "abc", true, nil, true, false, true, 1, 1},
-	{"ab{c,d,*}", "abcde", true, nil, true, false, true, 5, 5},
+	{"ab{c,d}", "abc", true, nil, false, false, true, 1, 1},
+	{"ab{c,d,*}", "abcde", true, nil, false, false, true, 5, 5},
 	{"ab{c,d}[", "abcd", false, ErrBadPattern, false, false, true, 0, 0},
 	{"a{,bc}", "a", true, nil, false, false, true, 2, 2},
 	{"a{,bc}", "abc", true, nil, false, false, true, 2, 2},
@@ -131,15 +132,17 @@ var matchTests = []MatchTest{
 	{"{a/abc}", "a/abc", true, nil, false, false, true, 1, 1},
 	{"{a/b,a/c}", "a/c", true, nil, false, false, true, 2, 2},
 	{"abc/**", "abc/b", true, nil, false, false, true, 3, 3},
-	{"**/abc", "abc", true, nil, !onWindows, false, true, 2, 2},
+	{"**/abc", "abc", true, nil, false, false, true, 2, 2},
 	{"abc**", "abc/b", false, nil, false, false, true, 3, 3},
-	{"**/*.txt", "abc/【test】.txt", true, nil, !onWindows, false, true, 1, 1},
-	{"**/【*", "abc/【test】.txt", true, nil, !onWindows, false, true, 1, 1},
-	{"**/{a,b}", "a/b", true, nil, true, false, true, 5, 5},
+	{"**/*.txt", "abc/【test】.txt", true, nil, false, false, true, 1, 1},
+	{"**/【*", "abc/【test】.txt", true, nil, false, false, true, 1, 1},
+	{"**/{a,b}", "a/b", true, nil, false, false, true, 5, 5},
 	// unfortunately, io/fs can't handle this, so neither can Glob =(
 	{"broken-symlink", "broken-symlink", true, nil, false, true, false, 1, 1},
+	{"broken-symlink/*", "a", false, nil, false, true, true, 0, 0},
+	{"broken*/*", "a", false, nil, false, true, true, 0, 0},
 	{"working-symlink/c/*", "working-symlink/c/d", true, nil, false, true, !onWindows, 1, 1},
-	{"working-sym*/*", "working-symlink/c", true, nil, true, true, !onWindows, 1, 1},
+	{"working-sym*/*", "working-symlink/c", true, nil, false, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, nil, false, false, !onWindows, 2, 2},
 	{"e/**", "e/**", true, nil, false, false, !onWindows, 11, 6},
 	{"e/**", "e/*", true, nil, false, false, !onWindows, 11, 6},
@@ -172,10 +175,11 @@ var matchTests = []MatchTest{
 	{"e/\\*", "e/*", true, nil, false, true, !onWindows, 1, 1},
 	{"e/\\?", "e/?", true, nil, false, true, !onWindows, 1, 1},
 	{"e/\\?", "e/**", false, nil, false, true, !onWindows, 1, 1},
-	{"nonexistent-path", "a", false, nil, true, true, true, 0, 0},
-	{"nonexistent-path/file", "a", false, nil, true, true, true, 0, 0},
-	{"nonexistent-path/*", "a", false, nil, true, true, true, 0, 0},
-	{"nonexistent-path/**", "a", false, nil, true, true, true, 0, 0},
+	{"nonexistent-path", "a", false, nil, false, true, true, 0, 0},
+	{"nonexistent-path/", "a", false, nil, false, true, true, 0, 0},
+	{"nonexistent-path/file", "a", false, nil, false, true, true, 0, 0},
+	{"nonexistent-path/*", "a", false, nil, false, true, true, 0, 0},
+	{"nonexistent-path/**", "a", false, nil, false, true, true, 0, 0},
 }
 
 func TestValidatePattern(t *testing.T) {
@@ -452,7 +456,7 @@ func doFilepathGlobTest(t *testing.T, opts ...GlobOption) {
 func testFilepathGlobWith(t *testing.T, idx int, tt MatchTest, g *glob, opts []GlobOption, fsys fs.FS) {
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("#%v. FilepathGlob(%#q, %#v) panicked: %#v", idx, tt.pattern, opts, r)
+			t.Errorf("#%v. FilepathGlob(%#q, %#v) panicked: %#v", idx, tt.pattern, g, r)
 		}
 	}()
 
@@ -462,7 +466,7 @@ func testFilepathGlobWith(t *testing.T, idx int, tt MatchTest, g *glob, opts []G
 	if tt.isStandard && len(opts) == 0 {
 		stdMatches, stdErr := filepath.Glob(tt.pattern)
 		if !compareSlices(matches, stdMatches) || !compareErrors(err, stdErr) {
-			t.Errorf("#%v. FilepathGlob(%#q, %#v) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, tt.pattern, opts, matches, err, stdMatches, stdErr)
+			t.Errorf("#%v. FilepathGlob(%#q, %#v) != filepath.Glob(...). Got %#v, %v want %#v, %v", idx, tt.pattern, g, matches, err, stdMatches, stdErr)
 		}
 	}
 }

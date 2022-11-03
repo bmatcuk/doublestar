@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 )
@@ -60,7 +61,7 @@ func (g *glob) doGlob(fsys fs.FS, pattern string, m []string, firstSegment bool)
 		// pattern exist?
 		// The pattern may contain escaped wildcard characters for an exact path match.
 		path := unescapeMeta(pattern)
-		pathExists, pathErr := g.exists(fsys, path)
+		_, pathExists, pathErr := g.exists(fsys, path)
 		if pathErr != nil {
 			return nil, pathErr
 		}
@@ -201,7 +202,7 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		if g.failOnIOErrors {
+		if !errors.Is(err, fs.ErrNotExist) && g.failOnIOErrors {
 			return nil, err
 		}
 		return
@@ -210,17 +211,17 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 	var matched bool
 	for _, info := range dirs {
 		name := info.Name()
-		matched = canMatchFiles
-		if !matched {
-			matched, e = g.isDir(fsys, dir, name, info)
-			if e != nil {
-				return
-			}
+		matched, e = matchWithSeparator(pattern, name, '/', false)
+		if e != nil {
+			return
 		}
 		if matched {
-			matched, e = matchWithSeparator(pattern, name, '/', false)
-			if e != nil {
-				return
+			matched = canMatchFiles
+			if !matched {
+				matched, e = g.isDir(fsys, dir, name, info)
+				if e != nil {
+					return
+				}
 			}
 			if matched {
 				m = append(m, path.Join(dir, name))
@@ -234,7 +235,7 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 func (g *glob) globDoubleStar(fsys fs.FS, dir string, matches []string, canMatchFiles bool) ([]string, error) {
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		if g.failOnIOErrors {
+		if !errors.Is(err, fs.ErrNotExist) && g.failOnIOErrors {
 			return nil, err
 		}
 		return matches, nil
@@ -336,15 +337,28 @@ func indexMatchedOpeningAlt(s string) int {
 }
 
 // Returns true if the path exists
-func (g *glob) exists(fsys fs.FS, name string) (bool, error) {
-	_, err := fs.Stat(fsys, name)
-	return err == nil, g.forwardErrIfFailOnIOErrors(err)
+func (g *glob) exists(fsys fs.FS, name string) (fs.FileInfo, bool, error) {
+	// name might end in a slash, but Stat doesn't like that
+	namelen := len(name)
+	if name[namelen - 1] == '/' {
+		name = name[:namelen-1]
+	}
+
+	info, err := fs.Stat(fsys, name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, false, nil
+	}
+	return info, err == nil, g.forwardErrIfFailOnIOErrors(err)
 }
 
-// Returns true if the path is a directory, or a symlink to a directory
+// Returns true if the path exists and is a directory or a symlink to a
+// directory
 func (g *glob) isPathDir(fsys fs.FS, name string) (bool, error) {
 	info, err := fs.Stat(fsys, name)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
 		return false, g.forwardErrIfFailOnIOErrors(err)
 	}
 
@@ -362,6 +376,9 @@ func (g *glob) isDir(fsys fs.FS, dir, name string, info fs.DirEntry) (bool, erro
 		}
 		finfo, err := fs.Stat(fsys, p)
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return false, nil
+			}
 			return false, g.forwardErrIfFailOnIOErrors(err)
 		}
 		return finfo.IsDir(), nil
