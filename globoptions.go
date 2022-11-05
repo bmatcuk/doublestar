@@ -19,8 +19,10 @@ func newGlob(opts ...GlobOption) *glob {
 }
 
 // WithFailOnIOErrors is an option that can be passed to Glob, GlobWalk, or
-// FilepathGlob. If passed, it enables aborting and returning the error when an
-// IO error is encountered.
+// FilepathGlob. If passed, doublestar will abort and return IO errors when
+// encountered. Note that if the glob pattern references a path that does not
+// exist (such as `nonexistent/path/*`), this is _not_ considered an IO error:
+// it is considered a pattern with no matches.
 //
 func WithFailOnIOErrors() GlobOption {
 	return func(g *glob) {
