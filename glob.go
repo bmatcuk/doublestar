@@ -340,7 +340,7 @@ func indexMatchedOpeningAlt(s string) int {
 func (g *glob) exists(fsys fs.FS, name string) (fs.FileInfo, bool, error) {
 	// name might end in a slash, but Stat doesn't like that
 	namelen := len(name)
-	if name[namelen - 1] == '/' {
+	if namelen > 1 && name[namelen - 1] == '/' {
 		name = name[:namelen-1]
 	}
 
