@@ -105,19 +105,35 @@ that both `pattern` and `name` are using the system's path separator. If you
 can't be sure of that, use `filepath.ToSlash()` on both `pattern` and `name`,
 and then use the `Match()` function instead.
 
+### GlobOption
+
+Options that may be passed to `Glob`, `GlobWalk`, or `FilepathGlob`. Any number
+of options may be passed to these functions, and in any order, as the last
+argument(s).
+
+```go
+WithFailOnIOErrors()
+```
+
+If passed, it enables aborting and returning the error when an IO error is
+encountered.
+
 ### Glob
 
 ```go
-func Glob(fsys fs.FS, pattern string) ([]string, error)
+func Glob(fsys fs.FS, pattern string, opts ...GlobOption) ([]string, error)
 ```
 
 Glob returns the names of all files matching pattern or nil if there is no
 matching file. The syntax of patterns is the same as in `Match()`. The pattern
 may describe hierarchical names such as `usr/*/bin/ed`.
 
-Glob ignores file system errors such as I/O errors reading directories.  The
-only possible returned error is `ErrBadPattern`, reporting that the pattern is
-malformed.
+Glob ignores file system errors such as I/O errors reading directories by
+default. The only possible returned error is `ErrBadPattern`, reporting that
+the pattern is malformed.
+
+To enable aborting on I/O errors, the `WithFailOnIOErrors` option can be
+passed.
 
 Note: this is meant as a drop-in replacement for `io/fs.Glob()`. Like
 `io/fs.Glob()`, this function assumes that your pattern uses `/` as the path
@@ -139,7 +155,7 @@ Note: users should _not_ count on the returned error,
 ```go
 type GlobWalkFunc func(path string, d fs.DirEntry) error
 
-func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc) error
+func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) error
 ```
 
 GlobWalk calls the callback function `fn` for every file matching pattern.  The
@@ -157,8 +173,13 @@ will skip the current directory. This means that if the current path _is_ a
 directory, GlobWalk will not recurse into it. If the current path is not a
 directory, the rest of the parent directory will be skipped.
 
-GlobWalk ignores file system errors such as I/O errors reading directories.
-GlobWalk may return `ErrBadPattern`, reporting that the pattern is malformed.
+GlobWalk ignores file system errors such as I/O errors reading directories by
+default. GlobWalk may return `ErrBadPattern`, reporting that the pattern is
+malformed.
+
+To enable aborting on I/O errors, the `WithFailOnIOErrors` option can be
+passed.
+
 Additionally, if the callback function `fn` returns an error, GlobWalk will
 exit immediately and return that error.
 
@@ -173,16 +194,19 @@ Note: users should _not_ count on the returned error,
 ### FilepathGlob
 
 ```go
-func FilepathGlob(pattern string) (matches []string, err error)
+func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err error)
 ```
 
 FilepathGlob returns the names of all files matching pattern or nil if there is
 no matching file. The syntax of pattern is the same as in Match(). The pattern
 may describe hierarchical names such as usr/*/bin/ed.
 
-FilepathGlob ignores file system errors such as I/O errors reading directories.
-The only possible returned error is `ErrBadPattern`, reporting that the pattern
-is malformed.
+FilepathGlob ignores file system errors such as I/O errors reading directories
+by default. The only possible returned error is `ErrBadPattern`, reporting that
+the pattern is malformed.
+
+To enable aborting on I/O errors, the `WithFailOnIOErrors` option can be
+passed.
 
 Note: FilepathGlob is a convenience function that is meant as a drop-in
 replacement for `path/filepath.Glob()` for users who don't need the
