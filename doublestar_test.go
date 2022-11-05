@@ -181,14 +181,14 @@ var matchTests = []MatchTest{
 var matchFilepathGlobTests = []MatchTest{
 	{".", ".", true, nil, false, true, !onWindows, 1, 1},
 	{"././.", ".", true, nil, false, true, !onWindows, 1, 1},
-	{"..", "..", true, nil, false, true, !onWindows, 1, 1},
-	{"../.", "..", true, nil, false, true, !onWindows, 1, 1},
-	{".././././", "..", true, nil, false, true, !onWindows, 1, 1},
-	{"../..", "../..", true, nil, false, true, !onWindows, 1, 1},
-	{"/", "/", true, nil, false, true, !onWindows, 1, 1},
+	{"..", "..", true, nil, true, true, !onWindows, 1, 1},
+	{"../.", "..", true, nil, true, true, !onWindows, 1, 1},
+	{".././././", "..", true, nil, true, true, !onWindows, 1, 1},
+	{"../..", "../..", true, nil, true, true, !onWindows, 1, 1},
+	{"/", "/", true, nil, true, true, !onWindows, 1, 1},
 	{"./", ".", true, nil, false, true, !onWindows, 1, 1},
-	{"/.", "/", true, nil, false, true, !onWindows, 1, 1},
-	{"/././././", "/", true, nil, false, true, !onWindows, 1, 1},
+	{"/.", "/", true, nil, true, true, !onWindows, 1, 1},
+	{"/././././", "/", true, nil, true, true, !onWindows, 1, 1},
 }
 
 func TestValidatePattern(t *testing.T) {
@@ -496,7 +496,7 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, g *glob, 
 		if tt.expectIOErr && err == nil {
 			t.Errorf("#%v. %v(%#q, %#v) does not have an error, but should", idx, fn, tt.pattern, g)
 		} else if !tt.expectIOErr && err != nil && err != tt.expectedErr {
-			t.Errorf("#%v. %v(%#q, %#v) has error %v, but should not", idx, fn, tt.pattern, g, err)
+			t.Errorf("#%v. %v(%#q, %#v) has error '%v', but should not", idx, fn, tt.pattern, g, err)
 		}
 		return
 	}
