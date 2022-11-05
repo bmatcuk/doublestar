@@ -57,18 +57,25 @@ func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) e
 	}
 
 	g := newGlob(opts...)
-	return g.doGlobWalk(fsys, pattern, true, fn)
+	return g.doGlobWalk(fsys, pattern, true, true, fn)
 }
 
 // Actually execute GlobWalk
-func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn GlobWalkFunc) error {
+//   - firstSegment is true if we're in the first segment of the pattern, ie,
+//     the right-most part where we can match files. If it's false, we're
+//     somewhere in the middle (or at the beginning) and can only match
+//     directories since there are path segments above us.
+//   - beforeMeta is true if we're exploring segments before any meta
+//     characters, ie, in a pattern such as `path/to/file*.txt`, the `path/to/`
+//     bit does not contain any meta characters.
+func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment, beforeMeta bool, fn GlobWalkFunc) error {
 	patternStart := indexMeta(pattern)
 	if patternStart == -1 {
 		// pattern doesn't contain any meta characters - does a file matching the
 		// pattern exist?
 		// The pattern may contain escaped wildcard characters for an exact path match.
 		path := unescapeMeta(pattern)
-		info, pathExists, err := g.exists(fsys, path)
+		info, pathExists, err := g.exists(fsys, path, beforeMeta)
 		if pathExists {
 			err = fn(path, dirEntryFromFileInfo(info))
 			if err == SkipDir {
@@ -87,25 +94,29 @@ func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn Glob
 				// if there's no matching opening index, technically Match() will treat
 				// an unmatched `}` as nothing special, so... we will, too!
 				splitIdx = lastIndexSlash(pattern[:splitIdx])
+				if splitIdx != -1 {
+					dir = pattern[:splitIdx]
+					pattern = pattern[splitIdx+1:]
+				}
 			} else {
 				// otherwise, we have to handle the alts:
-				return g.globAltsWalk(fsys, pattern, openingIdx, splitIdx, firstSegment, fn)
+				return g.globAltsWalk(fsys, pattern, openingIdx, splitIdx, firstSegment, beforeMeta, fn)
 			}
+		} else {
+			dir = pattern[:splitIdx]
+			pattern = pattern[splitIdx+1:]
 		}
-
-		dir = pattern[:splitIdx]
-		pattern = pattern[splitIdx+1:]
 	}
 
 	// if `splitIdx` is less than `patternStart`, we know `dir` has no meta
 	// characters. They would be equal if they are both -1, which means `dir`
 	// will be ".", and we know that doesn't have meta characters either.
 	if splitIdx <= patternStart {
-		return g.globDirWalk(fsys, dir, pattern, firstSegment, fn)
+		return g.globDirWalk(fsys, dir, pattern, firstSegment, beforeMeta, fn)
 	}
 
-	return g.doGlobWalk(fsys, dir, false, func(p string, d fs.DirEntry) error {
-		if err := g.globDirWalk(fsys, p, pattern, firstSegment, fn); err != nil {
+	return g.doGlobWalk(fsys, dir, false, beforeMeta, func(p string, d fs.DirEntry) error {
+		if err := g.globDirWalk(fsys, p, pattern, firstSegment, false, fn); err != nil {
 			return err
 		}
 		return nil
@@ -114,22 +125,23 @@ func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment bool, fn Glob
 
 // handle alts in the glob pattern - `openingIdx` and `closingIdx` are the
 // indexes of `{` and `}`, respectively
-func (g *glob) globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstSegment bool, fn GlobWalkFunc) (err error) {
+func (g *glob) globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx int, firstSegment, beforeMeta bool, fn GlobWalkFunc) (err error) {
 	var matches []DirEntryWithFullPath
 	startIdx := 0
 	afterIdx := closingIdx + 1
 	splitIdx := lastIndexSlashOrAlt(pattern[:openingIdx])
 	if splitIdx == -1 || pattern[splitIdx] == '}' {
 		// no common prefix
-		matches, err = g.doGlobAltsWalk(fsys, "", pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, matches)
+		matches, err = g.doGlobAltsWalk(fsys, "", pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, beforeMeta, matches)
 		if err != nil {
 			return
 		}
 	} else {
 		// our alts have a common prefix that we can process first
 		startIdx = splitIdx + 1
-		err = g.doGlobWalk(fsys, pattern[:splitIdx], false, func(p string, d fs.DirEntry) (e error) {
-			matches, e = g.doGlobAltsWalk(fsys, p, pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, matches)
+		innerBeforeMeta := beforeMeta && !hasMetaExceptAlts(pattern[:splitIdx])
+		err = g.doGlobWalk(fsys, pattern[:splitIdx], false, beforeMeta, func(p string, d fs.DirEntry) (e error) {
+			matches, e = g.doGlobAltsWalk(fsys, p, pattern, startIdx, openingIdx, closingIdx, afterIdx, firstSegment, innerBeforeMeta, matches)
 			return e
 		})
 		if err != nil {
@@ -182,7 +194,7 @@ func (g *glob) globAltsWalk(fsys fs.FS, pattern string, openingIdx, closingIdx i
 }
 
 // runs actual matching for alts
-func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingIdx, closingIdx, afterIdx int, firstSegment bool, m []DirEntryWithFullPath) (matches []DirEntryWithFullPath, err error) {
+func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingIdx, closingIdx, afterIdx int, firstSegment, beforeMeta bool, m []DirEntryWithFullPath) (matches []DirEntryWithFullPath, err error) {
 	matches = m
 	matchesLen := len(m)
 	patIdx := openingIdx + 1
@@ -195,7 +207,7 @@ func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingId
 		}
 
 		alt := buildAlt(d, pattern, startIdx, openingIdx, patIdx, nextIdx, afterIdx)
-		err = g.doGlobWalk(fsys, alt, firstSegment, func(p string, d fs.DirEntry) error {
+		err = g.doGlobWalk(fsys, alt, firstSegment, beforeMeta, func(p string, d fs.DirEntry) error {
 			// insertion sort, ignoring dups
 			insertIdx := matchesLen
 			for insertIdx > 0 && matches[insertIdx-1].Path > p {
@@ -227,31 +239,29 @@ func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingId
 	return
 }
 
-func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
+func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles, beforeMeta bool, fn GlobWalkFunc) (e error) {
 	if pattern == "" {
 		// pattern can be an empty string if the original pattern ended in a slash,
 		// in which case, we should just return dir, but only if it actually exists
 		// and it's a directory (or a symlink to a directory)
-		info, err := fs.Stat(fsys, dir)
+		info, isDir, err := g.isPathDir(fsys, dir, beforeMeta)
 		if err != nil {
-			return g.forwardErrIfFailOnIOErrors(err)
+			return err
 		}
-		if !info.IsDir() {
-			return nil
-		}
-
-		e = fn(dir, dirEntryFromFileInfo(info))
-		if e == SkipDir {
-			e = nil
+		if isDir {
+			e = fn(dir, dirEntryFromFileInfo(info))
+			if e == SkipDir {
+				e = nil
+			}
 		}
 		return
 	}
 
 	if pattern == "**" {
 		// `**` can match *this* dir
-		info, dirExists, err := g.exists(fsys, dir)
+		info, dirExists, err := g.exists(fsys, dir, beforeMeta)
 		if err != nil {
-			return g.forwardErrIfFailOnIOErrors(err)
+			return err
 		}
 		if !dirExists || !info.IsDir() {
 			return nil
@@ -268,7 +278,7 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles bool, 
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return
+			return g.handlePatternNotExist(beforeMeta)
 		}
 		return g.forwardErrIfFailOnIOErrors(err)
 	}
@@ -307,7 +317,10 @@ func (g *glob) globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return
+			// This function is only ever called after we know the top-most directory
+			// exists, so, if we ever get here, we know we'll never return
+			// ErrPatternNotExist.
+			return nil
 		}
 		return g.forwardErrIfFailOnIOErrors(err)
 	}
@@ -372,4 +385,19 @@ func dirEntryFromFileInfo(fi fs.FileInfo) fs.DirEntry {
 type DirEntryWithFullPath struct {
 	Entry fs.DirEntry
 	Path  string
+}
+
+func hasMetaExceptAlts(s string) bool {
+	var c byte
+	l := len(s)
+	for i := 0; i < l; i++ {
+		c = s[i]
+		if c == '*' || c == '?' || c == '[' {
+			return true
+		} else if c == '\\' {
+			// skip next byte
+			i++
+		}
+	}
+	return false
 }
