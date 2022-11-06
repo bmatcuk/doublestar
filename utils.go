@@ -84,10 +84,10 @@ func SplitPattern(p string) (base, pattern string) {
 // filepath.ErrBadPattern.
 //
 func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err error) {
-	cleaned := filepath.Clean(pattern)
-	cleaned = filepath.ToSlash(cleaned)
-	base, f := SplitPattern(cleaned)
-	if indexMeta(f) == -1 {
+	pattern = filepath.Clean(pattern)
+	pattern = filepath.ToSlash(pattern)
+	base, f := SplitPattern(pattern)
+	if f == "" || f == "." || f == ".." {
 		// some special cases to match filepath.Glob behavior
 		if !ValidatePathPattern(pattern) {
 			return nil, ErrBadPattern
@@ -104,7 +104,7 @@ func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err err
 			}
 			return nil, g.forwardErrIfFailOnIOErrors(err)
 		}
-		return []string{pattern}, nil
+		return []string{filepath.FromSlash(pattern)}, nil
 	}
 
 	fs := os.DirFS(base)

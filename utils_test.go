@@ -44,6 +44,9 @@ func testSpecialFilepathGlobCasesWith(t *testing.T, idx int, pattern string) {
 	if len(results) != 1 {
 		t.Errorf("#%v. filepath.Glob(%#q) should have 1 result but has %v", idx, pattern, len(results))
 	}
+
+	// doublestar.FilepathGlob Cleans the path
+	results[0] = filepath.Clean(results[0])
 	if matches[0] != results[0] {
 		t.Errorf("#%v. FilepathGlob(%#q) = %#v - should be %#v", idx, pattern, matches, results)
 	}
