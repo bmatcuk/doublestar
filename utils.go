@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -83,11 +84,26 @@ func SplitPattern(p string) (base, pattern string) {
 // filepath.ErrBadPattern.
 //
 func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err error) {
-	pattern = filepath.Clean(pattern)
-	pattern = filepath.ToSlash(pattern)
-	base, f := SplitPattern(pattern)
-	if f == "" || f == "." || f == ".." {
+	cleaned := filepath.Clean(pattern)
+	cleaned = filepath.ToSlash(cleaned)
+	base, f := SplitPattern(cleaned)
+	if indexMeta(f) == -1 {
 		// some special cases to match filepath.Glob behavior
+		if !ValidatePathPattern(pattern) {
+			return nil, ErrBadPattern
+		}
+
+		if filepath.Separator != '\\' {
+			pattern = unescapeMeta(pattern)
+		}
+
+		if _, err = os.Lstat(pattern); err != nil {
+			g := newGlob(opts...)
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, nil
+			}
+			return nil, g.forwardErrIfFailOnIOErrors(err)
+		}
 		return []string{pattern}, nil
 	}
 
