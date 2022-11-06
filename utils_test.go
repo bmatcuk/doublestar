@@ -16,6 +16,7 @@ var filepathGlobTests = []string{
 	"./",
 	"/.",
 	"/././././",
+	"nopermission/.",
 }
 
 func TestSpecialFilepathGlobCases(t *testing.T) {
@@ -33,21 +34,13 @@ func testSpecialFilepathGlobCasesWith(t *testing.T, idx int, pattern string) {
 
 	pattern = filepath.FromSlash(pattern)
 	matches, err := FilepathGlob(pattern)
-	if err != nil {
-		t.Errorf("#%v. FilepathGlob(%#q) has error %v", idx, pattern, err)
-	}
-	if len(matches) != 1 {
-		t.Errorf("#%v. FilepathGlob(%#q) should have 1 result but has %v", idx, pattern, len(matches))
-	}
-
-	results, err := filepath.Glob(pattern)
-	if len(results) != 1 {
-		t.Errorf("#%v. filepath.Glob(%#q) should have 1 result but has %v", idx, pattern, len(results))
-	}
+	results, stdErr := filepath.Glob(pattern)
 
 	// doublestar.FilepathGlob Cleans the path
-	results[0] = filepath.Clean(results[0])
-	if matches[0] != results[0] {
-		t.Errorf("#%v. FilepathGlob(%#q) = %#v - should be %#v", idx, pattern, matches, results)
+	for idx, result := range results {
+		results[idx] = filepath.Clean(result)
+	}
+	if !compareSlices(matches, results) || !compareErrors(err, stdErr) {
+		t.Errorf("#%v. FilepathGlob(%#q) != filepath.Glob(%#q). Got %#v, %v want %#v, %v", idx, pattern, pattern, matches, err, results, stdErr)
 	}
 }
