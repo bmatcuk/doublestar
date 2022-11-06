@@ -86,6 +86,11 @@ func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err err
 	pattern = filepath.Clean(pattern)
 	pattern = filepath.ToSlash(pattern)
 	base, f := SplitPattern(pattern)
+	if f == "" || f == "." || f == ".." {
+		// some special cases to match filepath.Glob behavior
+		return []string{pattern}, nil
+	}
+
 	fs := os.DirFS(base)
 	if matches, err = Glob(fs, f, opts...); err != nil {
 		return nil, err
