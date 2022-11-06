@@ -100,7 +100,7 @@ func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err err
 		if _, err = os.Lstat(pattern); err != nil {
 			g := newGlob(opts...)
 			if errors.Is(err, os.ErrNotExist) {
-				return nil, nil
+				return nil, g.handlePatternNotExist(true)
 			}
 			return nil, g.forwardErrIfFailOnIOErrors(err)
 		}
