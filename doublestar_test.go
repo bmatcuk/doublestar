@@ -146,6 +146,7 @@ var matchTests = []MatchTest{
 	{"working-symlink/c/*", "working-symlink/c/d", true, true, nil, false, false, true, !onWindows, 1, 1},
 	{"working-sym*/*", "working-symlink/c", true, true, nil, false, false, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, true, nil, false, false, false, !onWindows, 2, 2},
+	{"*/symlink-dir/*", "b/symlink-dir/f", true, true, nil, !onWindows, false, true, !onWindows, 2, 2},
 	{"e/**", "e/**", true, true, nil, false, false, false, !onWindows, 11, 6},
 	{"e/**", "e/*", true, true, nil, false, false, false, !onWindows, 11, 6},
 	{"e/**", "e/?", true, true, nil, false, false, false, !onWindows, 11, 6},
@@ -188,9 +189,17 @@ var matchTests = []MatchTest{
 	{"nopermission/file", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
 }
 
-// Calculate the number of results that we expect WithFilesOnly at runtime and
-// memoize them here
+// Calculate the number of results that we expect
+// WithFilesOnly at runtime and memoize them here
 var numResultsFilesOnly []int
+
+// Calculate the number of results that we expect
+// WithNoFollow at runtime and memoize them here
+var numResultsNoFollow []int
+
+// Calculate the number of results that we expect with all
+// of the options enabled at runtime and memoize them here
+var numResultsAllOpts []int
 
 func TestValidatePattern(t *testing.T) {
 	for idx, tt := range matchTests {
@@ -374,8 +383,12 @@ func TestGlobWithFilesOnly(t *testing.T) {
 	doGlobTest(t, WithFilesOnly())
 }
 
+func TestGlobWithNoFollow(t *testing.T) {
+	doGlobTest(t, WithNoFollow())
+}
+
 func TestGlobWithAllOptions(t *testing.T) {
-	doGlobTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly())
+	doGlobTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly(), WithNoFollow())
 }
 
 func doGlobTest(t *testing.T, opts ...GlobOption) {
@@ -418,8 +431,12 @@ func TestGlobWalkWithFilesOnly(t *testing.T) {
 	doGlobWalkTest(t, WithFilesOnly())
 }
 
+func TestGlobWalkWithNoFollow(t *testing.T) {
+	doGlobWalkTest(t, WithNoFollow())
+}
+
 func TestGlobWalkWithAllOptions(t *testing.T) {
-	doGlobWalkTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly())
+	doGlobWalkTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly(), WithNoFollow())
 }
 
 func doGlobWalkTest(t *testing.T, opts ...GlobOption) {
@@ -473,6 +490,10 @@ func TestFilepathGlobWithFailOnPatternNotExist(t *testing.T) {
 
 func TestFilepathGlobWithFilesOnly(t *testing.T) {
 	doFilepathGlobTest(t, WithFilesOnly())
+}
+
+func TestFilepathGlobWithNoFollow(t *testing.T) {
+	doFilepathGlobTest(t, WithNoFollow())
 }
 
 func doFilepathGlobTest(t *testing.T, opts ...GlobOption) {
@@ -537,13 +558,19 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, g *glob, 
 			numResults = tt.winNumResults
 		}
 		if g.filesOnly {
-			numResults = numResultsFilesOnly[idx]
+			if g.noFollow {
+				numResults = numResultsAllOpts[idx]
+			} else {
+				numResults = numResultsFilesOnly[idx]
+			}
+		} else if g.noFollow {
+			numResults = numResultsNoFollow[idx]
 		}
 
 		if len(matches) != numResults {
 			t.Errorf("#%v. %v(%#q, %#v) = %#v - should have %#v results, got %#v", idx, fn, tt.pattern, g, matches, numResults, len(matches))
 		}
-		if !g.filesOnly && inSlice(tt.testPath, matches) != tt.shouldMatchGlob {
+		if !g.filesOnly && !g.noFollow && inSlice(tt.testPath, matches) != tt.shouldMatchGlob {
 			if tt.shouldMatchGlob {
 				t.Errorf("#%v. %v(%#q, %#v) = %#v - doesn't contain %v, but should", idx, fn, tt.pattern, g, matches, tt.testPath)
 			} else {
@@ -656,23 +683,40 @@ func compareSlices(a, b []string) bool {
 	return len(diff) == 0
 }
 
-func buildNumResultsFilesOnly() {
+func buildNumResults() {
 	testLen := len(matchTests)
 	numResultsFilesOnly = make([]int, testLen, testLen)
+	numResultsNoFollow = make([]int, testLen, testLen)
+	numResultsAllOpts = make([]int, testLen, testLen)
 
 	fsys := os.DirFS("test")
 	g := newGlob()
 	for idx, tt := range matchTests {
 		if tt.testOnDisk {
-			count := 0
+			filesOnly := 0
+			noFollow := 0
+			allOpts := 0
 			GlobWalk(fsys, tt.pattern, func(p string, d fs.DirEntry) error {
 				isDir, _ := g.isDir(fsys, "", p, d)
 				if !isDir {
-					count++
+					filesOnly++
 				}
+
+				hasNoFollow := (strings.HasPrefix(tt.pattern, "working-symlink") || !strings.Contains(p, "working-symlink/")) && !strings.Contains(p, "/symlink-dir/")
+				if hasNoFollow {
+					noFollow++
+				}
+
+				if hasNoFollow && (!isDir || p == "working-symlink") {
+					allOpts++
+				}
+
 				return nil
 			})
-			numResultsFilesOnly[idx] = count
+
+			numResultsFilesOnly[idx] = filesOnly
+			numResultsNoFollow[idx] = noFollow
+			numResultsAllOpts[idx] = allOpts
 		}
 	}
 }
@@ -770,7 +814,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// initialize numResultsFilesOnly
-	buildNumResultsFilesOnly()
+	buildNumResults()
 
 	os.Exit(m.Run())
 }
