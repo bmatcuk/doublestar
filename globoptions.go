@@ -1,9 +1,12 @@
 package doublestar
 
+import "strings"
+
 // glob is an internal type to store options during globbing.
 type glob struct {
 	failOnIOErrors        bool
 	failOnPatternNotExist bool
+	filesOnly             bool
 }
 
 // GlobOption represents a setting that can be passed to Glob, GlobWalk, and
@@ -45,6 +48,16 @@ func WithFailOnPatternNotExist() GlobOption {
 	}
 }
 
+// WithFilesOnly is an option that can be passed to Glob, GlobWalk, or
+// FilepathGlob. If passed, doublestar will only return files that match the
+// pattern, not directories.
+//
+func WithFilesOnly() GlobOption {
+	return func(g *glob) {
+		g.filesOnly = true
+	}
+}
+
 // forwardErrIfFailOnIOErrors is used to wrap the return values of I/O
 // functions. When failOnIOErrors is enabled, it will return err; otherwise, it
 // always returns nil.
@@ -69,13 +82,31 @@ func (g *glob) handlePatternNotExist(canFail bool) error {
 
 // Format options for debugging/testing purposes
 func (g *glob) GoString() string {
-	if g.failOnIOErrors {
-		if g.failOnPatternNotExist {
-			return "opts: WithFailOnIOErrors, WithFailOnPatternNotExist"
-		}
-		return "opts: WithFailOnIOErrors"
-	} else if g.failOnPatternNotExist {
-		return "opts: WithFailOnPatternNotExist"
+	var b strings.Builder
+	b.WriteString("opts: ")
+
+	hasOpts := false
+	if (g.failOnIOErrors) {
+		b.WriteString("WithFailOnIOErrors")
+		hasOpts = true
 	}
-	return "opts: nil"
+	if (g.failOnPatternNotExist) {
+		if hasOpts {
+			b.WriteString(", ")
+		}
+		b.WriteString("WithFailOnPatternNotExist")
+		hasOpts = true
+	}
+	if (g.filesOnly) {
+		if hasOpts {
+			b.WriteString(", ")
+		}
+		b.WriteString("WithFilesOnly")
+		hasOpts = true
+	}
+
+	if !hasOpts {
+		b.WriteString("nil")
+	}
+	return b.String()
 }

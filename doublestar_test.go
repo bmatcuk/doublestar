@@ -188,6 +188,10 @@ var matchTests = []MatchTest{
 	{"nopermission/file", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
 }
 
+// Calculate the number of results that we expect WithFilesOnly at runtime and
+// memoize them here
+var numResultsFilesOnly []int
+
 func TestValidatePattern(t *testing.T) {
 	for idx, tt := range matchTests {
 		testValidatePatternWith(t, idx, tt)
@@ -366,8 +370,12 @@ func TestGlobWithFailOnPatternNotExist(t *testing.T) {
 	doGlobTest(t, WithFailOnPatternNotExist())
 }
 
+func TestGlobWithFilesOnly(t *testing.T) {
+	doGlobTest(t, WithFilesOnly())
+}
+
 func TestGlobWithAllOptions(t *testing.T) {
-	doGlobTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist())
+	doGlobTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly())
 }
 
 func doGlobTest(t *testing.T, opts ...GlobOption) {
@@ -406,8 +414,12 @@ func TestGlobWalkWithFailOnPatternNotExist(t *testing.T) {
 	doGlobWalkTest(t, WithFailOnPatternNotExist())
 }
 
+func TestGlobWalkWithFilesOnly(t *testing.T) {
+	doGlobWalkTest(t, WithFilesOnly())
+}
+
 func TestGlobWalkWithAllOptions(t *testing.T) {
-	doGlobWalkTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist())
+	doGlobWalkTest(t, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly())
 }
 
 func doGlobWalkTest(t *testing.T, opts ...GlobOption) {
@@ -457,6 +469,10 @@ func TestFilepathGlobWithFailOnIOErrors(t *testing.T) {
 
 func TestFilepathGlobWithFailOnPatternNotExist(t *testing.T) {
 	doFilepathGlobTest(t, WithFailOnPatternNotExist())
+}
+
+func TestFilepathGlobWithFilesOnly(t *testing.T) {
+	doFilepathGlobTest(t, WithFilesOnly())
 }
 
 func doFilepathGlobTest(t *testing.T, opts ...GlobOption) {
@@ -520,11 +536,14 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, g *glob, 
 		if onWindows {
 			numResults = tt.winNumResults
 		}
+		if g.filesOnly {
+			numResults = numResultsFilesOnly[idx]
+		}
 
 		if len(matches) != numResults {
 			t.Errorf("#%v. %v(%#q, %#v) = %#v - should have %#v results, got %#v", idx, fn, tt.pattern, g, matches, numResults, len(matches))
 		}
-		if inSlice(tt.testPath, matches) != tt.shouldMatchGlob {
+		if !g.filesOnly && inSlice(tt.testPath, matches) != tt.shouldMatchGlob {
 			if tt.shouldMatchGlob {
 				t.Errorf("#%v. %v(%#q, %#v) = %#v - doesn't contain %v, but should", idx, fn, tt.pattern, g, matches, tt.testPath)
 			} else {
@@ -637,6 +656,27 @@ func compareSlices(a, b []string) bool {
 	return len(diff) == 0
 }
 
+func buildNumResultsFilesOnly() {
+	testLen := len(matchTests)
+	numResultsFilesOnly = make([]int, testLen, testLen)
+
+	fsys := os.DirFS("test")
+	g := newGlob()
+	for idx, tt := range matchTests {
+		if tt.testOnDisk {
+			count := 0
+			GlobWalk(fsys, tt.pattern, func(p string, d fs.DirEntry) error {
+				isDir, _ := g.isDir(fsys, "", p, d)
+				if !isDir {
+					count++
+				}
+				return nil
+			})
+			numResultsFilesOnly[idx] = count
+		}
+	}
+}
+
 func mkdirp(parts ...string) {
 	dirs := path.Join(parts...)
 	err := os.MkdirAll(dirs, 0755)
@@ -728,6 +768,9 @@ func TestMain(m *testing.M) {
 			os.Chmod(path.Join("test", "nopermission"), 0)
 		}
 	}
+
+	// initialize numResultsFilesOnly
+	buildNumResultsFilesOnly()
 
 	os.Exit(m.Run())
 }

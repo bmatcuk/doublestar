@@ -131,6 +131,14 @@ this check. In other words, a pattern such as `{a,b}/*` may fail if either `a`
 or `b` do not exist but `*/{a,b}` will never fail because the star may match
 nothing.
 
+```go
+WithFilesOnly()
+```
+
+If passed, doublestar will only return "files" from `Glob`, `GlobWalk`, or
+`FilepathGlob`. In this context, "files" are anything that is not a directory
+or a symlink to a directory.
+
 ### Glob
 
 ```go
