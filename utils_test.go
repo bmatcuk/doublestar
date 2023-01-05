@@ -1,8 +1,8 @@
 package doublestar
 
 import (
-	"testing"
 	"path/filepath"
+	"testing"
 )
 
 var filepathGlobTests = []string{

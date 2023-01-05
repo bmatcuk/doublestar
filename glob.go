@@ -389,7 +389,7 @@ func (g *glob) isPathDir(fsys fs.FS, name string, beforeMeta bool) (fs.FileInfo,
 // represents a symbolic link, the link is followed by running fs.Stat() on
 // `path.Join(dir, name)` (if dir is "", name will be used without joining)
 func (g *glob) isDir(fsys fs.FS, dir, name string, info fs.DirEntry) (bool, error) {
-	if (info.Type() & fs.ModeSymlink) > 0 {
+	if !g.noFollow && (info.Type()&fs.ModeSymlink) > 0 {
 		p := name
 		if dir != "" {
 			p = path.Join(dir, name)
