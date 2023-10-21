@@ -99,7 +99,7 @@ var matchTests = []MatchTest{
 	{"[abc]", "b", true, true, nil, false, false, true, true, 3, 3},
 	{"**", "", true, true, nil, false, false, false, false, 38, 38},
 	{"a/**", "a", true, true, nil, false, false, false, true, 7, 7},
-	{"a/**/", "a", true, true, nil, false, false, false, false, 4, 4},
+	{"a/**/", "a", true, true, nil, false, false, false, true, 4, 4},
 	{"a/**", "a/", true, true, nil, false, false, false, false, 7, 7},
 	{"a/**/", "a/", true, true, nil, false, false, false, false, 4, 4},
 	{"a/**", "a/b", true, true, nil, false, false, false, true, 7, 7},
@@ -509,7 +509,10 @@ func doFilepathGlobTest(t *testing.T, opts ...GlobOption) {
 	os.Chdir("test")
 
 	for idx, tt := range matchTests {
-		if tt.testOnDisk {
+		// Patterns ending with a slash are treated semantically different by
+		// FilepathGlob vs Glob because FilepathGlob runs filepath.Clean, which
+		// will remove the trailing slash.
+		if tt.testOnDisk && !strings.HasSuffix(tt.pattern, "/") {
 			ttmod := tt
 			ttmod.pattern = filepath.FromSlash(tt.pattern)
 			ttmod.testPath = filepath.FromSlash(tt.testPath)
