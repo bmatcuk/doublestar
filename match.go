@@ -67,6 +67,12 @@ func PathMatch(pattern, name string) (bool, error) {
 	return matchWithSeparator(pattern, name, filepath.Separator, true)
 }
 
+// MatchWithSeparator returns true if `name` matches the file name `pattern`
+// using the specified rune as separator.
+func MatchWithSeparator(pattern, name string, separator rune) (bool, error) {
+	return matchWithSeparator(pattern, name, separator, true)
+}
+
 func matchWithSeparator(pattern, name string, separator rune, validate bool) (matched bool, err error) {
 	return doMatchWithSeparator(pattern, name, separator, validate, -1, -1, -1, -1, 0, 0)
 }
@@ -283,7 +289,7 @@ MATCH:
 			}
 		}
 
-		if validate && patIdx < patLen && !doValidatePattern(pattern[patIdx:], separator) {
+		if validate && patIdx < patLen && !ValidateWithSeparator(pattern[patIdx:], separator) {
 			return false, ErrBadPattern
 		}
 		return false, nil
@@ -339,7 +345,7 @@ func isZeroLengthPattern(pattern string, separator rune) (ret bool, err error) {
 	}
 
 	// no luck - validate the rest of the pattern
-	if !doValidatePattern(pattern, separator) {
+	if !ValidateWithSeparator(pattern, separator) {
 		return false, ErrBadPattern
 	}
 	return false, nil
