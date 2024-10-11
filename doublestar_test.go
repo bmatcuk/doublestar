@@ -273,6 +273,33 @@ func BenchmarkGoMatch(b *testing.B) {
 	}
 }
 
+func TestMatchUnvalidated(t *testing.T) {
+	for idx, tt := range matchTests {
+		testMatchUnvalidatedWith(t, idx, tt)
+	}
+}
+
+func testMatchUnvalidatedWith(t *testing.T, idx int, tt MatchTest) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("#%v. MatchUnvalidated(%#q, %#q) panicked: %#v", idx, tt.pattern, tt.testPath, r)
+		}
+	}()
+
+	// MatchUnvalidated() always uses "/" as the separator
+	ok := MatchUnvalidated(tt.pattern, tt.testPath)
+	if ok != tt.shouldMatch {
+		t.Errorf("#%v. MatchUnvalidated(%#q, %#q) = %v want %v", idx, tt.pattern, tt.testPath, ok, tt.shouldMatch)
+	}
+
+	if tt.isStandard {
+		stdOk, _ := path.Match(tt.pattern, tt.testPath)
+		if ok != stdOk {
+			t.Errorf("#%v. MatchUnvalidated(%#q, %#q) != path.Match(...). Got %v want %v", idx, tt.pattern, tt.testPath, ok, stdOk)
+		}
+	}
+}
+
 func TestPathMatch(t *testing.T) {
 	for idx, tt := range matchTests {
 		// Even though we aren't actually matching paths on disk, we are using
