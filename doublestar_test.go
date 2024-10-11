@@ -28,6 +28,7 @@ type MatchTest struct {
 var onWindows = runtime.GOOS == "windows"
 
 var matchTests = []MatchTest{
+	{"", "", true, false, nil, true, false, true, true, 0, 0},
 	{"*", "", true, true, nil, false, false, true, false, 0, 0},
 	{"*", "/", false, false, nil, false, false, true, false, 0, 0},
 	{"/*", "/", true, true, nil, false, false, true, false, 0, 0},
