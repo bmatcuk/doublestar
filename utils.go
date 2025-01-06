@@ -117,14 +117,14 @@ func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err err
 		return []string{filepath.FromSlash(pattern)}, nil
 	}
 
-	fs := os.DirFS(base)
+	fs := os.DirFS(unescapeMeta(base))
 	if matches, err = Glob(fs, f, opts...); err != nil {
 		return nil, err
 	}
 	for i := range matches {
 		// use path.Join because we used ToSlash above to ensure our paths are made
 		// of forward slashes, no matter what the system uses
-		matches[i] = filepath.FromSlash(path.Join(base, matches[i]))
+		matches[i] = filepath.FromSlash(path.Join(unescapeMeta(base), matches[i]))
 	}
 	return
 }
