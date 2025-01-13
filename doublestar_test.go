@@ -142,6 +142,7 @@ var matchTests = []MatchTest{
 	{"**/*.txt", "abc/【test】.txt", true, true, nil, !onWindows, false, false, true, 1, 1},
 	{"**/【*", "abc/【test】.txt", true, true, nil, !onWindows, false, false, true, 1, 1},
 	{"**/{a,b}", "a/b", true, true, nil, !onWindows, false, false, true, 5, 5},
+	{"a/*/*/d", "a/b/c/d", true, true, nil, false, false, true, true, 1, 1},
 	// unfortunately, io/fs can't handle this, so neither can Glob =(
 	{"broken-symlink", "broken-symlink", true, true, nil, false, false, true, false, 1, 1},
 	{"broken-symlink/*", "a", false, false, nil, false, true, true, true, 0, 0},
@@ -150,16 +151,17 @@ var matchTests = []MatchTest{
 	{"working-sym*/*", "working-symlink/c", true, true, nil, false, false, true, !onWindows, 1, 1},
 	{"b/**/f", "b/symlink-dir/f", true, true, nil, false, false, false, !onWindows, 2, 2},
 	{"*/symlink-dir/*", "b/symlink-dir/f", true, true, nil, !onWindows, false, true, !onWindows, 2, 2},
-	{"e/\\[owner\\]/*", "e/[owner]/p.tsx", true, true, nil, false, false, true, !onWindows, 1, 0},
-	{"e/**", "e/**", true, true, nil, false, false, false, !onWindows, 13, 6},
-	{"e/**", "e/*", true, true, nil, false, false, false, !onWindows, 13, 6},
-	{"e/**", "e/?", true, true, nil, false, false, false, !onWindows, 13, 6},
-	{"e/**", "e/[", true, true, nil, false, false, false, true, 13, 6},
-	{"e/**", "e/]", true, true, nil, false, false, false, true, 13, 6},
-	{"e/**", "e/[]", true, true, nil, false, false, false, true, 13, 6},
-	{"e/**", "e/{", true, true, nil, false, false, false, true, 13, 6},
-	{"e/**", "e/}", true, true, nil, false, false, false, true, 13, 6},
-	{"e/**", "e/\\", true, true, nil, false, false, false, !onWindows, 13, 6},
+	{"e/\\[x\\]/*", "e/[x]/[y]", true, true, nil, false, false, true, true, 1, 1},
+	{"e/\\[x\\]/*/z", "e/[x]/[y]/z", true, true, nil, false, false, true, true, 1, 1},
+	{"e/**", "e/**", true, true, nil, false, false, false, !onWindows, 14, 6},
+	{"e/**", "e/*", true, true, nil, false, false, false, !onWindows, 14, 6},
+	{"e/**", "e/?", true, true, nil, false, false, false, !onWindows, 14, 6},
+	{"e/**", "e/[", true, true, nil, false, false, false, true, 14, 6},
+	{"e/**", "e/]", true, true, nil, false, false, false, true, 14, 6},
+	{"e/**", "e/[]", true, true, nil, false, false, false, true, 14, 6},
+	{"e/**", "e/{", true, true, nil, false, false, false, true, 14, 6},
+	{"e/**", "e/}", true, true, nil, false, false, false, true, 14, 6},
+	{"e/**", "e/\\", true, true, nil, false, false, false, !onWindows, 14, 6},
 	{"e/*", "e/*", true, true, nil, false, false, true, !onWindows, 11, 5},
 	{"e/?", "e/?", true, true, nil, false, false, true, !onWindows, 7, 4},
 	{"e/?", "e/*", true, true, nil, false, false, true, !onWindows, 7, 4},
@@ -794,7 +796,7 @@ func TestMain(m *testing.M) {
 	mkdirp("test", "axbxcxdxe", "xxx")
 	mkdirp("test", "axbxcxdxexxx")
 	mkdirp("test", "b")
-	mkdirp("test", "e")
+	mkdirp("test", "e", "[x]", "[y]")
 
 	// create test files
 	touch("test", "a", "abc")
@@ -823,6 +825,7 @@ func TestMain(m *testing.M) {
 	touch("test", "e", "{")
 	touch("test", "e", "}")
 	touch("test", "e", "[]")
+	touch("test", "e", "[x]", "[y]", "z")
 
 	touch("test", "}")
 

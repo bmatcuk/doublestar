@@ -110,7 +110,7 @@ func (g *glob) doGlob(fsys fs.FS, pattern string, m []string, firstSegment, befo
 	}
 
 	var dirs []string
-	dirs, err = g.doGlob(fsys, unescapeMeta(dir), matches, false, beforeMeta)
+	dirs, err = g.doGlob(fsys, dir, matches, false, beforeMeta)
 	if err != nil {
 		return
 	}

@@ -115,7 +115,7 @@ func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment, beforeMeta b
 		return g.globDirWalk(fsys, unescapeMeta(dir), pattern, firstSegment, beforeMeta, fn)
 	}
 
-	return g.doGlobWalk(fsys, unescapeMeta(dir), false, beforeMeta, func(p string, d fs.DirEntry) error {
+	return g.doGlobWalk(fsys, dir, false, beforeMeta, func(p string, d fs.DirEntry) error {
 		if err := g.globDirWalk(fsys, p, pattern, firstSegment, false, fn); err != nil {
 			return err
 		}
