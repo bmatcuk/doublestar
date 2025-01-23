@@ -89,6 +89,46 @@ func PathMatchUnvalidated(pattern, name string) bool {
 	return matched
 }
 
+// Pattern is a representation of a compiled glob pattern.
+type Pattern struct {
+	// initial implementation doesn't actually "compile", just saves the pattern to use when matching
+	// Obviously long term we'll want to store some kind of tree or something
+	pattern string
+}
+
+// Compile parses a pattern and returns, if successful, a [Pattern] object
+// that can be used to match against text.
+func Compile(pattern string) (*Pattern, error) {
+	if !ValidatePattern(pattern) {
+		return nil, ErrBadPattern
+	}
+	return &Pattern{
+		pattern: pattern,
+	}, nil
+}
+
+// MustCompile is like Compile but panics if the expression cannot be parsed.
+func MustCompile(pattern string) *Pattern {
+
+	p, err := Compile(pattern)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+// Match reports whether the name matches this pattern
+func (p *Pattern) Match(name string) bool {
+	matches, err := Match(p.pattern, name)
+	// This shouldn't be able to happen, since we validated the pattern already
+	// When this function is converted to actually doing a match instead of calling Match()
+	// on the initial pattern, this can go away
+	if err != nil {
+		panic(err)
+	}
+	return matches
+}
+
 func matchWithSeparator(pattern, name string, separator rune, validate bool) (matched bool, err error) {
 	return doMatchWithSeparator(pattern, name, separator, validate, -1, -1, -1, -1, 0, 0)
 }
