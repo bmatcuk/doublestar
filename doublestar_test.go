@@ -281,8 +281,8 @@ func TestMatchUnvalidated(t *testing.T) {
 	for idx, tt := range matchTests {
 		testMatchUnvalidatedWith(t, idx, tt)
 	}
-	// Not only test that they get the right matches, but make sure Unvalidated is properly *skipping* validation
 
+	// Not only test that they get the right matches, but make sure Unvalidated is properly *skipping* validation
 	unvalidatedTests := []struct {
 		pattern, testPath      string // a pattern and path to test the pattern on
 		expectedErrValidated   error  // the error expected if the pattern was being validated
