@@ -281,6 +281,29 @@ func TestMatchUnvalidated(t *testing.T) {
 	for idx, tt := range matchTests {
 		testMatchUnvalidatedWith(t, idx, tt)
 	}
+	// Not only test that they get the right matches, but make sure Unvalidated is properly *skipping* validation
+
+	unvalidatedTests := []struct {
+		pattern, testPath      string // a pattern and path to test the pattern on
+		expectedErrValidated   error  // the error expected if the pattern was being validated
+		expectedErrUnvalidated error  // the error expected if the pattern was not being validated
+	}{
+		{"", "", nil, nil},
+		{"*", "", nil, nil},
+		{"a[", "a", ErrBadPattern, nil},          // End early because got to end of match; do not need to validate the rest
+		{"a[", "b", ErrBadPattern, nil},          // End early because failed to match; do not need to validate the rest
+		{"[", "a", ErrBadPattern, ErrBadPattern}, // Error right up front, needs to fail whether validate or not
+	}
+	for idx, tt := range unvalidatedTests {
+		_, errValidated := matchWithSeparator(tt.pattern, tt.testPath, '/', true)
+		_, errUnvalidated := matchWithSeparator(tt.pattern, tt.testPath, '/', false)
+		if errValidated != tt.expectedErrValidated {
+			t.Errorf("#%v. Validated error of Match(%#q, %#q) = %v want %v", idx, tt.pattern, tt.testPath, errValidated, tt.expectedErrValidated)
+		}
+		if errUnvalidated != tt.expectedErrUnvalidated {
+			t.Errorf("#%v. Unvalidated error of Match(%#q, %#q) = %v want %v", idx, tt.pattern, tt.testPath, errUnvalidated, tt.expectedErrUnvalidated)
+		}
+	}
 }
 
 func testMatchUnvalidatedWith(t *testing.T, idx int, tt MatchTest) {
