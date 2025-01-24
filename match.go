@@ -119,14 +119,7 @@ func MustCompile(pattern string) *Pattern {
 
 // Match reports whether the name matches this pattern
 func (p *Pattern) Match(name string) bool {
-	matches, err := Match(p.pattern, name)
-	// This shouldn't be able to happen, since we validated the pattern already
-	// When this function is converted to actually doing a match instead of calling Match()
-	// on the initial pattern, this can go away
-	if err != nil {
-		panic(err)
-	}
-	return matches
+	return MatchUnvalidated(p.pattern, name)
 }
 
 func matchWithSeparator(pattern, name string, separator rune, validate bool) (matched bool, err error) {
