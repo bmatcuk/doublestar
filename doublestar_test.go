@@ -257,6 +257,13 @@ func testCompileWith(t *testing.T, idx int, tt MatchTest) {
 	if ok != tt.shouldMatch || err != tt.expectedErr {
 		t.Errorf("#%v. Match(%#q, %#q) = %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, tt.shouldMatch, tt.expectedErr)
 	}
+
+	if tt.isStandard {
+		stdOk, stdErr := path.Match(tt.pattern, tt.testPath)
+		if ok != stdOk || !compareErrors(err, stdErr) {
+			t.Errorf("#%v. Match(%#q, %#q) != path.Match(...). Got %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, stdOk, stdErr)
+		}
+	}
 }
 
 func testMatchWith(t *testing.T, idx int, tt MatchTest) {
