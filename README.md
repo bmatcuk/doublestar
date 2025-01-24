@@ -378,6 +378,8 @@ Class      | Meaning
 ---------- | -------
 `[abc]`    | matches any single character within the set
 `[a-z]`    | matches any single character in the range
+`[123]`    | matches any single number within the set
+`[1-9]`    | matches any single number in the range
 `[^class]` | matches any single character which does *not* match the class
 `[!class]` | same as `^`: negates the class
 
