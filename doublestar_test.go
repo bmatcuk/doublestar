@@ -193,6 +193,11 @@ var matchTests = []MatchTest{
 	{"nopermission/*", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
 	{"nopermission/dir/", "nopermission/dir", false, false, nil, true, false, true, !onWindows, 0, 0},
 	{"nopermission/file", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
+	{"[0-9]-doc.md", "2-doc.md", true, false, nil, false, false, true, true, 0, 0},
+	{"[0-9]-doc.md", "20-doc.md", false, false, nil, false, false, true, true, 0, 0},
+	{"[0-9]*-doc.md", "20-doc.md", true, false, nil, false, false, true, true, 0, 0},
+	{"[12]*-doc.md", "2-doc.md", true, false, nil, false, false, true, true, 0, 0},
+	{"[12]*-doc.md", "3-doc.md", false, false, nil, false, false, true, true, 0, 0},
 }
 
 // Calculate the number of results that we expect
