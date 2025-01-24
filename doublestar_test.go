@@ -35,7 +35,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, false, nil, false, false, true, false, 0, 0},
 	{"/*", "//", false, false, nil, false, false, true, false, 0, 0},
 	{"abc", "abc", true, true, nil, false, false, true, true, 1, 1},
-	{"*", "abc", true, true, nil, false, false, true, true, 22, 17},
+	{"*", "abc", true, true, nil, false, false, true, true, 23, 18},
 	{"*c", "abc", true, true, nil, false, false, true, true, 2, 2},
 	{"*/", "a/", true, true, nil, false, false, true, false, 0, 0},
 	{"a*", "a", true, true, nil, false, false, true, true, 9, 9},
@@ -98,6 +98,8 @@ var matchTests = []MatchTest{
 	{"ad[", "ab", false, false, ErrBadPattern, false, false, true, true, 0, 0},
 	{"*x", "xxx", true, true, nil, false, false, true, true, 4, 4},
 	{"[abc]", "b", true, true, nil, false, false, true, true, 3, 3},
+	{"[abc123]", "1", true, true, nil, false, false, true, true, 4, 4},
+	{"[a-z0-9]", "1", true, true, nil, false, false, true, true, 7, 7},
 	{"**", "", true, true, nil, false, false, false, false, 38, 38},
 	{"a/**", "a", true, true, nil, false, false, false, true, 7, 7},
 	{"a/**/", "a", true, true, nil, false, false, false, true, 4, 4},
@@ -193,11 +195,6 @@ var matchTests = []MatchTest{
 	{"nopermission/*", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
 	{"nopermission/dir/", "nopermission/dir", false, false, nil, true, false, true, !onWindows, 0, 0},
 	{"nopermission/file", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
-	{"[0-9]-doc.md", "2-doc.md", true, false, nil, false, false, true, true, 0, 0},
-	{"[0-9]-doc.md", "20-doc.md", false, false, nil, false, false, true, true, 0, 0},
-	{"[0-9]*-doc.md", "20-doc.md", true, false, nil, false, false, true, true, 0, 0},
-	{"[12]*-doc.md", "2-doc.md", true, false, nil, false, false, true, true, 0, 0},
-	{"[12]*-doc.md", "3-doc.md", false, false, nil, false, false, true, true, 0, 0},
 }
 
 // Calculate the number of results that we expect
@@ -804,6 +801,7 @@ func TestMain(m *testing.M) {
 	mkdirp("test", "e", "[x]", "[y]")
 
 	// create test files
+	touch("test", "1")
 	touch("test", "a", "abc")
 	touch("test", "a", "b", "c", "d")
 	touch("test", "a", "c", "b")

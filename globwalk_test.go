@@ -17,7 +17,7 @@ type SkipTest struct {
 var skipTests = []SkipTest{
 	{"a", "a", "a", 0, 0},
 	{"a/", "a", "a", 1, 1},
-	{"*", "b", "c", 11, 9},
+	{"*", "b", "c", 12, 10},
 	{"a/**", "a", "a", 0, 0},
 	{"a/**", "a/abc", "a/b", 1, 1},
 	{"a/**", "a/b/c", "a/b/c/d", 5, 5},
