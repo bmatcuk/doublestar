@@ -311,11 +311,6 @@ MATCH:
 		return false, nil
 	}
 
-	if nameIdx < nameLen {
-		// we reached the end of `pattern` before the end of `name`
-		return false, nil
-	}
-
 	// we've reached the end of `name`; we've successfully matched if we've also
 	// reached the end of `pattern`, or if the rest of `pattern` can match a
 	// zero-length string
