@@ -35,7 +35,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, false, nil, false, false, true, false, 0, 0},
 	{"/*", "//", false, false, nil, false, false, true, false, 0, 0},
 	{"abc", "abc", true, true, nil, false, false, true, true, 1, 1},
-	{"*", "abc", true, true, nil, false, false, true, true, 23, 18},
+	{"*", "abc", true, true, nil, false, false, true, true, 24, 18},
 	{"*c", "abc", true, true, nil, false, false, true, true, 2, 2},
 	{"*/", "a/", true, true, nil, false, false, true, false, 0, 0},
 	{"a*", "a", true, true, nil, false, false, true, true, 9, 9},
@@ -63,8 +63,8 @@ var matchTests = []MatchTest{
 	{"a[!a]b", "a☺b", true, true, nil, false, false, false, true, 1, 1},
 	{"a???b", "a☺b", false, false, nil, false, false, true, true, 0, 0},
 	{"a[^a][^a][^a]b", "a☺b", false, false, nil, false, false, true, true, 0, 0},
-	{"[a-ζ]*", "α", true, true, nil, false, false, true, true, 20, 17},
-	{"*[a-ζ]", "A", false, false, nil, false, false, true, true, 20, 17},
+	{"[a-ζ]*", "α", true, true, nil, false, false, true, true, 21, 17},
+	{"*[a-ζ]", "A", false, false, nil, false, false, true, true, 21, 17},
 	{"a?b", "a/b", false, false, nil, false, false, true, true, 1, 1},
 	{"a*b", "a/b", false, false, nil, false, false, true, true, 1, 1},
 	{"[\\]a]", "]", true, true, nil, false, false, true, !onWindows, 2, 2},
@@ -297,8 +297,8 @@ func TestMatchUnvalidated(t *testing.T) {
 		{"[", "a", ErrBadPattern, ErrBadPattern}, // Error right up front, needs to fail whether validate or not
 	}
 	for idx, tt := range unvalidatedTests {
-		_, errValidated := matchWithSeparator(tt.pattern, tt.testPath, '/', true)
-		_, errUnvalidated := matchWithSeparator(tt.pattern, tt.testPath, '/', false)
+		_, errValidated := matchWithSeparator(tt.pattern, tt.testPath, '/', true, false)
+		_, errUnvalidated := matchWithSeparator(tt.pattern, tt.testPath, '/', false, false)
 		if errValidated != tt.expectedErrValidated {
 			t.Errorf("#%v. Validated error of Match(%#q, %#q) = %v want %v", idx, tt.pattern, tt.testPath, errValidated, tt.expectedErrValidated)
 		}
@@ -393,7 +393,7 @@ func testPathMatchFakeWith(t *testing.T, idx int, tt MatchTest) {
 
 	pattern := strings.ReplaceAll(tt.pattern, "/", "\\")
 	testPath := strings.ReplaceAll(tt.testPath, "/", "\\")
-	ok, err := matchWithSeparator(pattern, testPath, '\\', true)
+	ok, err := matchWithSeparator(pattern, testPath, '\\', true, false)
 	if ok != tt.shouldMatch || err != tt.expectedErr {
 		t.Errorf("#%v. PathMatch(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
 	}
@@ -535,26 +535,36 @@ func testStandardGlob(t *testing.T, idx int, fn string, tt MatchTest, fsys fs.FS
 }
 
 func TestFilepathGlob(t *testing.T) {
-	doFilepathGlobTest(t)
+	doFilepathGlobTest(t, matchTests)
 }
 
 func TestFilepathGlobWithFailOnIOErrors(t *testing.T) {
-	doFilepathGlobTest(t, WithFailOnIOErrors())
+	doFilepathGlobTest(t, matchTests, WithFailOnIOErrors())
 }
 
 func TestFilepathGlobWithFailOnPatternNotExist(t *testing.T) {
-	doFilepathGlobTest(t, WithFailOnPatternNotExist())
+	doFilepathGlobTest(t, matchTests, WithFailOnPatternNotExist())
 }
 
 func TestFilepathGlobWithFilesOnly(t *testing.T) {
-	doFilepathGlobTest(t, WithFilesOnly())
+	doFilepathGlobTest(t, matchTests, WithFilesOnly())
 }
 
 func TestFilepathGlobWithNoFollow(t *testing.T) {
-	doFilepathGlobTest(t, WithNoFollow())
+	doFilepathGlobTest(t, matchTests, WithNoFollow())
 }
 
-func doFilepathGlobTest(t *testing.T, opts ...GlobOption) {
+func TestFilepathGlobWithCaseInsensitive(t *testing.T) {
+	var insensitiveTest, sensitiveTest MatchTest
+	insensitiveTest = MatchTest{"**/test", "cases", false, false, nil, false, false, false, !onWindows, 1, 1}
+	sensitiveTest = insensitiveTest
+	sensitiveTest.numResults = 3
+
+	doFilepathGlobTest(t, []MatchTest{insensitiveTest})
+	doFilepathGlobTest(t, []MatchTest{sensitiveTest}, WithCaseInsensitive())
+}
+
+func doFilepathGlobTest(t *testing.T, tests []MatchTest, opts ...GlobOption) {
 	glob := newGlob(opts...)
 	fsys := os.DirFS("test")
 
@@ -564,7 +574,7 @@ func doFilepathGlobTest(t *testing.T, opts ...GlobOption) {
 	}()
 	os.Chdir("test")
 
-	for idx, tt := range matchTests {
+	for idx, tt := range tests {
 		// Patterns ending with a slash are treated semantically different by
 		// FilepathGlob vs Glob because FilepathGlob runs filepath.Clean, which
 		// will remove the trailing slash.
@@ -822,6 +832,9 @@ func TestMain(m *testing.M) {
 	mkdirp("test", "axbxcxdxexxx")
 	mkdirp("test", "b")
 	mkdirp("test", "e", "[x]", "[y]")
+	mkdirp("test", "cases", "test_a")
+	mkdirp("test", "cases", "test_b")
+	mkdirp("test", "cases", "test_c")
 
 	// create test files
 	touch("test", "1")
@@ -852,6 +865,10 @@ func TestMain(m *testing.M) {
 	touch("test", "e", "}")
 	touch("test", "e", "[]")
 	touch("test", "e", "[x]", "[y]", "z")
+
+	touch("test", "cases", "test_a", "test")
+	touch("test", "cases", "test_b", "TEST")
+	touch("test", "cases", "test_c", "Test")
 
 	touch("test", "}")
 
