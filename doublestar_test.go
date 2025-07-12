@@ -36,7 +36,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, false, false, nil, false, false, true, false, 0, 0},
 	{"/*", "//", false, false, false, nil, false, false, true, false, 0, 0},
 	{"abc", "abc", true, true, false, nil, false, false, true, true, 1, 1},
-	{"*", "abc", true, true, false, nil, false, false, true, true, 26, 21},
+	{"*", "abc", true, true, false, nil, false, false, true, true, 27, 21},
 	{"*c", "abc", true, true, false, nil, false, false, true, true, 2, 2},
 	{"*/", "a/", true, true, false, nil, false, false, true, false, 0, 0},
 	{"a*", "a", true, true, false, nil, false, false, true, true, 9, 9},
@@ -64,8 +64,8 @@ var matchTests = []MatchTest{
 	{"a[!a]b", "a☺b", true, true, false, nil, false, false, false, true, 1, 1},
 	{"a???b", "a☺b", false, false, false, nil, false, false, true, true, 0, 0},
 	{"a[^a][^a][^a]b", "a☺b", false, false, false, nil, false, false, true, true, 0, 0},
-	{"[a-ζ]*", "α", true, true, false, nil, false, false, true, true, 23, 20},
-	{"*[a-ζ]", "A", false, false, false, nil, false, false, true, true, 23, 20},
+	{"[a-ζ]*", "α", true, true, false, nil, false, false, true, true, 24, 20},
+	{"*[a-ζ]", "A", false, false, false, nil, false, false, true, true, 24, 20},
 	{"a?b", "a/b", false, false, false, nil, false, false, true, true, 1, 1},
 	{"a*b", "a/b", false, false, false, nil, false, false, true, true, 1, 1},
 	{"[\\]a]", "]", true, true, false, nil, false, false, true, !onWindows, 2, 2},
@@ -210,6 +210,8 @@ var matchTests = []MatchTest{
 	{"hidden-tests/**", "hidden-tests/hidden-dir/hidden-file", true, true, false, nil, false, false, false, onWindows, 6, 6},
 	{"hidden-tests/.hidden-dir/*", "hidden-tests/.hidden-dir/.hidden-file", true, true, false, nil, false, false, true, !onWindows, 2, 2},
 	{"hidden-tests/hidden-dir/*", "hidden-tests/hidden-dir/hidden-file", true, true, false, nil, false, false, true, onWindows, 2, 2},
+	// this pattern is technically "standard", but path.Glob will fail to match
+	{"*/dir/file", "noreaddirpermission/dir/file", true, true, false, nil, true, false, false, !onWindows, 1, 1},
 }
 
 // True if the file system supports case-sensitive filenames
@@ -950,10 +952,18 @@ func TestMain(m *testing.M) {
 		symlink("/tmp/nonexistant-file-20160902155705", "testdata/broken-symlink")
 		symlink("a/b", "testdata/working-symlink")
 
+		// no permisions at all
 		if !exists("testdata", "nopermission") {
 			mkdirp("testdata", "nopermission", "dir")
 			touch("testdata", "nopermission", "file")
 			os.Chmod(path.Join("testdata", "nopermission"), 0)
+		}
+
+		// no permission to read dir
+		if !exists("testdata", "noreaddirpermission") {
+			mkdirp("testdata", "noreaddirpermission", "dir")
+			touch("testdata", "noreaddirpermission", "dir", "file")
+			os.Chmod(path.Join("testdata", "noreaddirpermission"), 0o111)
 		}
 	}
 
