@@ -35,7 +35,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, false, nil, false, false, true, false, 0, 0},
 	{"/*", "//", false, false, nil, false, false, true, false, 0, 0},
 	{"abc", "abc", true, true, nil, false, false, true, true, 1, 1},
-	{"*", "abc", true, true, nil, false, false, true, true, 23, 18},
+	{"*", "abc", true, true, nil, false, false, true, true, 24, 18},
 	{"*c", "abc", true, true, nil, false, false, true, true, 2, 2},
 	{"*/", "a/", true, true, nil, false, false, true, false, 0, 0},
 	{"a*", "a", true, true, nil, false, false, true, true, 9, 9},
@@ -63,8 +63,8 @@ var matchTests = []MatchTest{
 	{"a[!a]b", "a☺b", true, true, nil, false, false, false, true, 1, 1},
 	{"a???b", "a☺b", false, false, nil, false, false, true, true, 0, 0},
 	{"a[^a][^a][^a]b", "a☺b", false, false, nil, false, false, true, true, 0, 0},
-	{"[a-ζ]*", "α", true, true, nil, false, false, true, true, 20, 17},
-	{"*[a-ζ]", "A", false, false, nil, false, false, true, true, 20, 17},
+	{"[a-ζ]*", "α", true, true, nil, false, false, true, true, 21, 17},
+	{"*[a-ζ]", "A", false, false, nil, false, false, true, true, 21, 17},
 	{"a?b", "a/b", false, false, nil, false, false, true, true, 1, 1},
 	{"a*b", "a/b", false, false, nil, false, false, true, true, 1, 1},
 	{"[\\]a]", "]", true, true, nil, false, false, true, !onWindows, 2, 2},
@@ -195,6 +195,8 @@ var matchTests = []MatchTest{
 	{"nopermission/*", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
 	{"nopermission/dir/", "nopermission/dir", false, false, nil, true, false, true, !onWindows, 0, 0},
 	{"nopermission/file", "nopermission/file", true, false, nil, true, false, true, !onWindows, 0, 0},
+	// this pattern is technically "standard", but path.Glob will fail to match
+	{"*/dir/file", "noreaddirpermission/dir/file", true, true, nil, true, false, false, !onWindows, 1, 1},
 }
 
 // Calculate the number of results that we expect
@@ -846,10 +848,18 @@ func TestMain(m *testing.M) {
 		symlink("/tmp/nonexistant-file-20160902155705", "test/broken-symlink")
 		symlink("a/b", "test/working-symlink")
 
+		// no permissions at all
 		if !exists("test", "nopermission") {
 			mkdirp("test", "nopermission", "dir")
 			touch("test", "nopermission", "file")
 			os.Chmod(path.Join("test", "nopermission"), 0)
+		}
+
+		// no permission to read dir
+		if !exists("test", "noreaddirpermission") {
+			mkdirp("test", "noreaddirpermission", "dir")
+			touch("test", "noreaddirpermission", "dir", "file")
+			os.Chmod(path.Join("test", "noreaddirpermission"), 0o111)
 		}
 	}
 

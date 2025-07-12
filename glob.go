@@ -109,11 +109,26 @@ func (g *glob) doGlob(fsys fs.FS, pattern string, m []string, firstSegment, befo
 		return g.globDir(fsys, unescapeMeta(dir), pattern, matches, firstSegment, beforeMeta)
 	}
 
+	// recurse on dir
 	var dirs []string
 	dirs, err = g.doGlob(fsys, dir, matches, false, beforeMeta)
 	if err != nil {
 		return
 	}
+
+	// if the pattern does not contain any meta, we can skip globbing
+	if indexMeta(pattern) == -1 {
+		for _, d := range dirs {
+			matches, err = g.globDirNoMeta(fsys, d, pattern, matches, firstSegment, false)
+			if err != nil {
+				return
+			}
+		}
+
+		return
+	}
+
+	// for each dir from above, glob
 	for _, d := range dirs {
 		matches, err = g.globDir(fsys, d, pattern, matches, firstSegment, false)
 		if err != nil {
@@ -193,19 +208,7 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 	m = matches
 
 	if pattern == "" {
-		if !canMatchFiles || !g.filesOnly {
-			// pattern can be an empty string if the original pattern ended in a
-			// slash, in which case, we should just return dir, but only if it
-			// actually exists and it's a directory (or a symlink to a directory)
-			_, isDir, err := g.isPathDir(fsys, dir, beforeMeta)
-			if err != nil {
-				return nil, err
-			}
-			if isDir {
-				m = append(m, dir)
-			}
-		}
-		return
+		return g.globDirEmptyPattern(fsys, dir, m, canMatchFiles, beforeMeta)
 	}
 
 	if pattern == "**" {
@@ -283,6 +286,61 @@ func (g *glob) globDoubleStar(fsys fs.FS, dir string, matches []string, canMatch
 	}
 
 	return matches, nil
+}
+
+// find files/subdirectories in the given `dir` that match `pattern`,
+// assuming `pattern` has no meta characters
+func (g *glob) globDirNoMeta(fsys fs.FS, dir, pattern string, matches []string, canMatchFiles, beforeMeta bool) (m []string, e error) {
+	m = matches
+
+	if pattern == "" {
+		return g.globDirEmptyPattern(fsys, dir, m, canMatchFiles, beforeMeta)
+	}
+
+	fullPath := path.Join(dir, pattern)
+
+	var info fs.FileInfo
+	var matched bool
+	info, matched, e = g.exists(fsys, fullPath, beforeMeta)
+	if e != nil {
+		return
+	}
+	if matched {
+		matched = canMatchFiles
+		if !matched || g.filesOnly {
+			matched = info.IsDir()
+			if canMatchFiles {
+				// if we're here, it's because g.filesOnly
+				// is set and we don't want directories
+				matched = !matched
+			}
+		}
+		if matched {
+			m = append(m, fullPath)
+		}
+	}
+
+	return
+}
+
+// handle an empty pattern while globbing a directory
+func (g *glob) globDirEmptyPattern(fsys fs.FS, dir string, matches []string, canMatchFiles, beforeMeta bool) (m []string, e error) {
+	m = matches
+
+	if !canMatchFiles || !g.filesOnly {
+		// pattern can be an empty string if the original pattern ended in a
+		// slash, in which case, we should just return dir, but only if it
+		// actually exists and it's a directory (or a symlink to a directory)
+		_, isDir, err := g.isPathDir(fsys, dir, beforeMeta)
+		if err != nil {
+			return nil, err
+		}
+		if isDir {
+			m = append(m, dir)
+		}
+	}
+
+	return
 }
 
 // Returns true if the pattern has a doublestar in the middle of the pattern.

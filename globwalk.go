@@ -115,8 +115,13 @@ func (g *glob) doGlobWalk(fsys fs.FS, pattern string, firstSegment, beforeMeta b
 		return g.globDirWalk(fsys, unescapeMeta(dir), pattern, firstSegment, beforeMeta, fn)
 	}
 
+	patternHasNoMeta := indexMeta(pattern) == -1
 	return g.doGlobWalk(fsys, dir, false, beforeMeta, func(p string, d fs.DirEntry) error {
-		if err := g.globDirWalk(fsys, p, pattern, firstSegment, false, fn); err != nil {
+		if patternHasNoMeta {
+			if err := g.globDirNoMetaWalk(fsys, p, pattern, firstSegment, false, fn); err != nil {
+				return err
+			}
+		} else if err := g.globDirWalk(fsys, p, pattern, firstSegment, false, fn); err != nil {
 			return err
 		}
 		return nil
@@ -241,22 +246,7 @@ func (g *glob) doGlobAltsWalk(fsys fs.FS, d, pattern string, startIdx, openingId
 
 func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles, beforeMeta bool, fn GlobWalkFunc) (e error) {
 	if pattern == "" {
-		if !canMatchFiles || !g.filesOnly {
-			// pattern can be an empty string if the original pattern ended in a
-			// slash, in which case, we should just return dir, but only if it
-			// actually exists and it's a directory (or a symlink to a directory)
-			info, isDir, err := g.isPathDir(fsys, dir, beforeMeta)
-			if err != nil {
-				return err
-			}
-			if isDir {
-				e = fn(dir, dirEntryFromFileInfo(info))
-				if e == SkipDir {
-					e = nil
-				}
-			}
-		}
-		return
+		return g.globDirEmptyPatternWalk(fsys, dir, canMatchFiles, beforeMeta, fn)
 	}
 
 	if pattern == "**" {
@@ -362,6 +352,61 @@ func (g *glob) globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn
 					e = nil
 				}
 				return
+			}
+		}
+	}
+
+	return
+}
+
+func (g *glob) globDirNoMetaWalk(fsys fs.FS, dir, pattern string, canMatchFiles, beforeMeta bool, fn GlobWalkFunc) (e error) {
+	if pattern == "" {
+		return g.globDirEmptyPatternWalk(fsys, dir, canMatchFiles, beforeMeta, fn)
+	}
+
+	fullPath := path.Join(dir, pattern)
+
+	var info fs.FileInfo
+	var matched bool
+	info, matched, e = g.exists(fsys, fullPath, beforeMeta)
+	if e != nil {
+		return
+	}
+	if matched {
+		matched = canMatchFiles
+		if !matched || g.filesOnly {
+			matched = info.IsDir()
+			if canMatchFiles {
+				// if we're here, it's because g.filesOnly
+				// is set and we don't want directories
+				matched = !matched
+			}
+		}
+		if matched {
+			if e = fn(fullPath, dirEntryFromFileInfo(info)); e != nil {
+				if e == SkipDir {
+					e = nil
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (g *glob) globDirEmptyPatternWalk(fsys fs.FS, dir string, canMatchFiles, beforeMeta bool, fn GlobWalkFunc) (e error) {
+	if !canMatchFiles || !g.filesOnly {
+		// pattern can be an empty string if the original pattern ended in a
+		// slash, in which case, we should just return dir, but only if it
+		// actually exists and it's a directory (or a symlink to a directory)
+		info, isDir, err := g.isPathDir(fsys, dir, beforeMeta)
+		if err != nil {
+			return err
+		}
+		if isDir {
+			e = fn(dir, dirEntryFromFileInfo(info))
+			if e == SkipDir {
+				e = nil
 			}
 		}
 	}
