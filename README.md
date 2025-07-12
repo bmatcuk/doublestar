@@ -175,7 +175,7 @@ If passed, doublestar will only return "files" from `Glob`, `GlobWalk`, or
 `FilepathGlob`. In this context, "files" are anything that is not a directory
 or a symlink to a directory.
 
-Note: if combined with the WithNoFollow option, symlinks to directories _will_
+Note: if combined with the `WithNoFollow` option, symlinks to directories _will_
 be included in the result since no attempt is made to follow the symlink.
 
 ```go
@@ -190,8 +190,8 @@ a pattern such as `path/to/symlink/*` will be followed assuming it is a valid
 symlink to a directory. However, from this same example, a pattern such as
 `path/to/**` will not traverse the `symlink`, nor would `path/*/symlink/*`
 
-Note: if combined with the WithFilesOnly option, symlinks to directories _will_
-be included in the result since no attempt is made to follow the symlink.
+Note: if combined with the `WithFilesOnly` option, symlinks to directories
+_will_ be included in the result since no attempt is made to follow the symlink.
 
 ### Glob
 
@@ -219,7 +219,7 @@ before calling `Glob()`.
 Like `io/fs.Glob()`, patterns containing `/./`, `/../`, or starting with `/`
 will return no results and no errors. This seems to be a [conscious
 decision](https://github.com/golang/go/issues/44092#issuecomment-774132549),
-even if counter-intuitive. You can use [SplitPattern] to divide a pattern into
+even if counter-intuitive. You can use `[SplitPattern]` to divide a pattern into
 a base path (to initialize an `FS` object) and pattern.
 
 Note: users should _not_ count on the returned error,
@@ -234,10 +234,10 @@ func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) e
 ```
 
 GlobWalk calls the callback function `fn` for every file matching pattern.  The
-syntax of pattern is the same as in Match() and the behavior is the same as
-Glob(), with regard to limitations (such as patterns containing `/./`, `/../`,
+syntax of pattern is the same as in `Match()` and the behavior is the same as
+`Glob()`, with regard to limitations (such as patterns containing `/./`, `/../`,
 or starting with `/`). The pattern may describe hierarchical names such as
-usr/*/bin/ed.
+`usr/*/bin/ed`.
 
 GlobWalk may have a small performance benefit over Glob if you do not need a
 slice of matches because it can avoid allocating memory for the matches.
@@ -258,10 +258,10 @@ passed.
 Additionally, if the callback function `fn` returns an error, GlobWalk will
 exit immediately and return that error.
 
-Like Glob(), this function assumes that your pattern uses `/` as the path
+Like `Glob()`, this function assumes that your pattern uses `/` as the path
 separator even if that's not correct for your OS (like Windows). If you aren't
-sure if that's the case, you can use filepath.ToSlash() on your pattern before
-calling GlobWalk().
+sure if that's the case, you can use `filepath.ToSlash()` on your pattern before
+calling `GlobWalk()`.
 
 Note: users should _not_ count on the returned error,
 `doublestar.ErrBadPattern`, being equal to `path.ErrBadPattern`.
@@ -273,8 +273,8 @@ func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err err
 ```
 
 FilepathGlob returns the names of all files matching pattern or nil if there is
-no matching file. The syntax of pattern is the same as in Match(). The pattern
-may describe hierarchical names such as usr/*/bin/ed.
+no matching file. The syntax of pattern is the same as in `Match()`. The pattern
+may describe hierarchical names such as `usr/*/bin/ed`.
 
 FilepathGlob ignores file system errors such as I/O errors reading directories
 by default. The only possible returned error is `ErrBadPattern`, reporting that
@@ -314,9 +314,9 @@ string is everything after that slash. For example, given the pattern:
              ^----------- split here
 ```
 
-SplitPattern returns "../../path/to" and "meta*/**". This is useful for
-initializing os.DirFS() to call Glob() because Glob() will silently fail if
-your pattern includes `/./` or `/../`. For example:
+SplitPattern returns `"../../path/to"` and `"meta*/**"`. This is useful for
+initializing `os.DirFS()` to call `Glob()` because `Glob()` will silently fail
+if your pattern includes `/./` or `/../`. For example:
 
 ```go
 base, pattern := SplitPattern("../../path/to/meta*/**")
@@ -332,7 +332,7 @@ Note that SplitPattern will also unescape any meta characters in the returned
 base string, so that it can be passed straight to os.DirFS().
 
 Of course, it is your responsibility to decide if the returned base path is
-"safe" in the context of your application. Perhaps you could use Match() to
+"safe" in the context of your application. Perhaps you could use `Match()` to
 validate against a list of approved base directories?
 
 ### ValidatePattern
@@ -341,13 +341,13 @@ validate against a list of approved base directories?
 func ValidatePattern(s string) bool
 ```
 
-Validate a pattern. Patterns are validated while they run in Match(),
-PathMatch(), and Glob(), so, you normally wouldn't need to call this.  However,
-there are cases where this might be useful: for example, if your program allows
-a user to enter a pattern that you'll run at a later time, you might want to
-validate it.
+Validate a pattern. Patterns are validated while they run in `Match()`,
+`PathMatch()`, and `Glob()`, so, you normally wouldn't need to call this.
+However, there are cases where this might be useful: for example, if your
+program allows a user to enter a pattern that you'll run at a later time, you
+might want to validate it.
 
-ValidatePattern assumes your pattern uses '/' as the path separator.
+ValidatePattern assumes your pattern uses `'/'` as the path separator.
 
 ### ValidatePathPattern
 
@@ -356,9 +356,9 @@ func ValidatePathPattern(s string) bool
 ```
 
 Like ValidatePattern, only uses your OS path separator. In other words, use
-ValidatePattern if you would normally use Match() or Glob(). Use
-ValidatePathPattern if you would normally use PathMatch(). Keep in mind, Glob()
-requires '/' separators, even if your OS uses something else.
+ValidatePattern if you would normally use `Match()` or `Glob()`. Use
+ValidatePathPattern if you would normally use `PathMatch()`. Keep in mind,
+`Glob()` requires `'/'` separators, even if your OS uses something else.
 
 ### Patterns
 
@@ -407,15 +407,16 @@ BenchmarkGlobWalk-8                  476           2536293 ns/op          184017
 BenchmarkGoGlob-8                    463           2574836 ns/op          194249 B/op       2929 allocs/op
 ```
 
-These benchmarks (in `doublestar_test.go`) compare Match() to path.Match(),
-PathMath() to filepath.Match(), and Glob() + GlobWalk() to io/fs.Glob(). They
-only run patterns that the standard go packages can understand as well (so, no
-`{alts}` or `**`) for a fair comparison. Of course, alts and doublestars will
-be less performant than the other pattern meta characters.
+These benchmarks (in `doublestar_test.go`) compare `Match()` to `path.Match()`,
+`PathMath()` to `filepath.Match()`, and `Glob()` + `GlobWalk()` to
+`io/fs.Glob()`. They only run patterns that the standard go packages can
+understand as well (so, no `{alts}` or `**`) for a fair comparison. Of course,
+alts and doublestars will be less performant than the other pattern meta
+characters.
 
 Alts are essentially like running multiple patterns, the number of which can
 get large if your pattern has alts nested inside alts. This affects both
-matching (ie, Match()) and globbing (Glob()).
+matching (ie, `Match()`) and globbing (`Glob()`).
 
 `**` performance in matching is actually pretty similar to a regular `*`, but
 can cause a large number of reads when globbing as it will need to recursively
