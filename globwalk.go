@@ -289,7 +289,7 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles, befor
 	var matched bool
 	for _, info := range dirs {
 		name := info.Name()
-		matched, e = matchWithSeparator(pattern, name, '/', false, g.alphaCaseInsensitive)
+		matched, e = matchWithSeparator(pattern, name, '/', false, g.caseInsensitive)
 		if e != nil {
 			return
 		}

@@ -4,11 +4,11 @@ import "strings"
 
 // glob is an internal type to store options during globbing.
 type glob struct {
+	caseInsensitive  bool
 	failOnIOErrors        bool
 	failOnPatternNotExist bool
 	filesOnly             bool
 	noFollow              bool
-	alphaCaseInsensitive  bool
 }
 
 // GlobOption represents a setting that can be passed to Glob, GlobWalk, and
@@ -22,6 +22,16 @@ func newGlob(opts ...GlobOption) *glob {
 		opt(g)
 	}
 	return g
+}
+
+// WithCaseInsensitive is an option that can be passed to Glob, GlobWalk, or
+// FilepathGlob. If passed, doublestar will treat all alphabetic characters as
+// case insensitive (i.e. "a" in the pattern would match "a" or "A"). This is
+// useful for platforms like Windows where paths are case insensitive by default.
+func WithCaseInsensitive() GlobOption {
+	return func(g *glob) {
+		g.caseInsensitive = true
+	}
 }
 
 // WithFailOnIOErrors is an option that can be passed to Glob, GlobWalk, or
@@ -80,16 +90,6 @@ func WithNoFollow() GlobOption {
 	}
 }
 
-// WithCaseInsensitive is an option that can be passed to Glob, GlobWalk, or
-// FilepathGlob. If passed, doublestar will treat all alphabetic characters as
-// case insensitive (i.e. "a" in the pattern would match "a" or "A"). This is
-// useful for platforms like Windows where paths are case insensitive by default.
-func WithCaseInsensitive() GlobOption {
-	return func(g *glob) {
-		g.alphaCaseInsensitive = true
-	}
-}
-
 // forwardErrIfFailOnIOErrors is used to wrap the return values of I/O
 // functions. When failOnIOErrors is enabled, it will return err; otherwise, it
 // always returns nil.
@@ -116,7 +116,14 @@ func (g *glob) GoString() string {
 	b.WriteString("opts: ")
 
 	hasOpts := false
+	if g.caseInsensitive {
+		b.WriteString("WithCaseInsensitive")
+		hasOpts = true
+	}
 	if g.failOnIOErrors {
+		if hasOpts {
+			b.WriteString(", ")
+		}
 		b.WriteString("WithFailOnIOErrors")
 		hasOpts = true
 	}
