@@ -326,7 +326,7 @@ func matchRune(a, b rune, caseInsensitive bool) bool {
 func isZeroLengthPattern(pattern string, separator rune, validate bool) (ret bool, err error) {
 	// `/**`, `**/`, and `/**/` are special cases - a pattern such as `path/to/a/**` or `path/to/a/**/`
 	// *should* match `path/to/a` because `a` might be a directory.
-	// Ensure no concatenation is done in these quick-exit common code paths
+	// This code is optimized to avoid string concatenation, giving a little performance bump.
 	switch len(pattern) {
 	case 0:
 		return true, nil
