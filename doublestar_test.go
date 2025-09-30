@@ -246,6 +246,7 @@ func TestMatch(t *testing.T) {
 func TestCompile(t *testing.T) {
 	for idx, tt := range matchTests {
 		testCompileWith(t, idx, tt)
+		testMustCompileWith(t, idx, tt)
 	}
 }
 
@@ -270,6 +271,22 @@ func testCompileWith(t *testing.T, idx int, tt MatchTest) {
 		if ok != stdOk || !compareErrors(err, stdErr) {
 			t.Errorf("#%v. Match(%#q, %#q) != path.Match(...). Got %v, %v want %v, %v", idx, tt.pattern, tt.testPath, ok, err, stdOk, stdErr)
 		}
+	}
+}
+
+func testMustCompileWith(t *testing.T, idx int, tt MatchTest) {
+	defer func() {
+		err := recover()
+		if err != tt.expectedErr {
+			t.Errorf("#%v. Match(%#q, %#q) panicked: %#v", idx, tt.pattern, tt.testPath, err)
+		}
+	}()
+
+	pat := MustCompile(tt.pattern)
+	ok := pat.Match(tt.testPath)
+
+	if ok != tt.shouldMatch {
+		t.Errorf("#%v. MustCompileMatch(%#q, %#q) = %v want %v, %v", idx, tt.pattern, tt.testPath, ok, tt.shouldMatch, tt.expectedErr)
 	}
 }
 
