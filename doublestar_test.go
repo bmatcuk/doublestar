@@ -210,6 +210,19 @@ var matchTests = []MatchTest{
 	{"hidden-tests/**", "hidden-tests/hidden-dir/hidden-file", true, true, false, nil, false, false, false, onWindows, 6, 6},
 	{"hidden-tests/.hidden-dir/*", "hidden-tests/.hidden-dir/.hidden-file", true, true, false, nil, false, false, true, !onWindows, 2, 2},
 	{"hidden-tests/hidden-dir/*", "hidden-tests/hidden-dir/hidden-file", true, true, false, nil, false, false, true, onWindows, 2, 2},
+
+	// Regression tests for issue #113: a character class inside a brace
+	// alternation used to make the matcher split on commas or braces that
+	// are *contained in the class*, so ValidatePattern blessed patterns
+	// that Match could never match. These rows are expected to validate
+	// (nil error) AND match.
+	{"{[a,b]x.md,real/path.txt}", "ax.md", true, true, false, nil, false, false, false, false, 0, 0},
+	{"{[a,b]x.md,real/path.txt}", "bx.md", true, true, false, nil, false, false, false, false, 0, 0},
+	{"{[a,b]x.md,real/path.txt}", "real/path.txt", true, true, false, nil, false, false, false, false, 0, 0},
+	{"{[a,b]x.md,real/path.txt}", "cx.md", false, false, false, nil, false, false, false, false, 0, 0},
+	{"{[}],a}", "}", true, true, false, nil, false, false, false, false, 0, 0},
+	{"{[}],a}", "a", true, true, false, nil, false, false, false, false, 0, 0},
+	{"{[}],a}", "b", false, false, false, nil, false, false, false, false, 0, 0},
 }
 
 // True if the file system supports case-sensitive filenames
