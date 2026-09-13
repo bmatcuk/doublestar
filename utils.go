@@ -2,6 +2,7 @@ package doublestar
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -148,6 +149,22 @@ func indexNextAlt(s string, allowEscaping bool) int {
 		}
 	}
 	return -1
+}
+
+// alreadyWalked reports whether dir was already visited during a ** walk.
+// Used to skip symlink cycles (e.g. a link pointing at a parent directory).
+func (g *glob) alreadyWalked(fsys fs.FS, dir string) bool {
+	info, err := fs.Stat(fsys, dir)
+	if err != nil {
+		return false
+	}
+	for _, prev := range g.visitedDirs {
+		if os.SameFile(prev, info) {
+			return true
+		}
+	}
+	g.visitedDirs = append(g.visitedDirs, info)
+	return false
 }
 
 var escapeMetaReplacer = strings.NewReplacer("*", "\\*", "?", "\\?", "[", "\\[", "]", "\\]", "{", "\\{", "}", "\\}")
