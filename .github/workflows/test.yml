@@ -18,12 +18,12 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       -
         name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v7
         with:
-          go-version: 1.18
+          go-version: 1.24
       -
         name: Test With Coverage
         run: go test -race -coverprofile=coverage.txt -covermode=atomic
@@ -34,5 +34,7 @@ jobs:
         if: matrix.os != 'ubuntu-latest'
       -
         name: Upload Coverage Report
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         if: matrix.os == 'ubuntu-latest'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
