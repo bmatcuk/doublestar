@@ -27,6 +27,7 @@ type MatchTest struct {
 
 // Tests which contain escapes and symlinks will not work on Windows
 var onWindows = runtime.GOOS == "windows"
+var windowsHasSymlinks = false
 
 var matchTests = []MatchTest{
 	{"", "", true, false, false, nil, true, false, true, true, 0, 0},
@@ -36,7 +37,7 @@ var matchTests = []MatchTest{
 	{"/*", "/debug/", false, false, false, nil, false, false, true, false, 0, 0},
 	{"/*", "//", false, false, false, nil, false, false, true, false, 0, 0},
 	{"abc", "abc", true, true, false, nil, false, false, true, true, 1, 1},
-	{"*", "abc", true, true, false, nil, false, false, true, true, 26, 21},
+	{"*", "abc", true, true, false, nil, false, false, true, true, 25, 22},
 	{"*c", "abc", true, true, false, nil, false, false, true, true, 2, 2},
 	{"*/", "a/", true, true, false, nil, false, false, true, false, 0, 0},
 	{"a*", "a", true, true, false, nil, false, false, true, true, 9, 9},
@@ -64,8 +65,8 @@ var matchTests = []MatchTest{
 	{"a[!a]b", "a☺b", true, true, false, nil, false, false, false, true, 1, 1},
 	{"a???b", "a☺b", false, false, false, nil, false, false, true, true, 0, 0},
 	{"a[^a][^a][^a]b", "a☺b", false, false, false, nil, false, false, true, true, 0, 0},
-	{"[a-ζ]*", "α", true, true, false, nil, false, false, true, true, 23, 20},
-	{"*[a-ζ]", "A", false, false, false, nil, false, false, true, true, 23, 20},
+	{"[a-ζ]*", "α", true, true, false, nil, false, false, true, true, 22, 21},
+	{"*[a-ζ]", "A", false, false, false, nil, false, false, true, true, 22, 21},
 	{"a?b", "a/b", false, false, false, nil, false, false, true, true, 1, 1},
 	{"a*b", "a/b", false, false, false, nil, false, false, true, true, 1, 1},
 	{"[\\]a]", "]", true, true, false, nil, false, false, true, !onWindows, 2, 2},
@@ -108,12 +109,12 @@ var matchTests = []MatchTest{
 	{"a/**/", "a/", true, true, false, nil, false, false, false, false, 4, 4},
 	{"a/**", "a/b", true, true, false, nil, false, false, false, true, 7, 7},
 	{"a/**", "a/b/c", true, true, false, nil, false, false, false, true, 7, 7},
-	{"**/c", "c", true, true, false, nil, !onWindows, false, false, true, 6, 5},
-	{"**/c", "b/c", true, true, false, nil, !onWindows, false, false, true, 6, 5},
-	{"**/c", "a/b/c", true, true, false, nil, !onWindows, false, false, true, 6, 5},
-	{"**/c", "a/b", false, false, false, nil, !onWindows, false, false, true, 6, 5},
-	{"**/c", "abcd", false, false, false, nil, !onWindows, false, false, true, 6, 5},
-	{"**/c", "a/abc", false, false, false, nil, !onWindows, false, false, true, 6, 5},
+	{"**/c", "c", true, true, false, nil, !onWindows, false, false, true, 5, 5},
+	{"**/c", "b/c", true, true, false, nil, !onWindows, false, false, true, 5, 5},
+	{"**/c", "a/b/c", true, true, false, nil, !onWindows, false, false, true, 5, 5},
+	{"**/c", "a/b", false, false, false, nil, !onWindows, false, false, true, 5, 5},
+	{"**/c", "abcd", false, false, false, nil, !onWindows, false, false, true, 5, 5},
+	{"**/c", "a/abc", false, false, false, nil, !onWindows, false, false, true, 5, 5},
 	{"a/**/b", "a/b", true, true, false, nil, false, false, false, true, 2, 2},
 	{"a/**/c", "a/b/c", true, true, false, nil, false, false, false, true, 2, 2},
 	{"a/**/d", "a/b/c/d", true, true, false, nil, false, false, false, true, 1, 1},
@@ -153,13 +154,12 @@ var matchTests = []MatchTest{
 	{"{[}],a}", "b", false, false, false, nil, false, false, false, true, 2, 2},
 	{"a/*/*/d", "a/b/c/d", true, true, false, nil, false, false, true, true, 1, 1},
 	// unfortunately, io/fs can't handle this, so neither can Glob =(
-	{"broken-symlink", "broken-symlink", true, true, false, nil, false, false, true, false, 1, 1},
-	{"broken-symlink/*", "a", false, false, false, nil, false, true, true, true, 0, 0},
-	{"broken*/*", "a", false, false, false, nil, false, false, true, true, 0, 0},
-	{"working-symlink/c/*", "working-symlink/c/d", true, true, false, nil, false, false, true, !onWindows, 1, 1},
-	{"working-sym*/*", "working-symlink/c", true, true, false, nil, false, false, true, !onWindows, 1, 1},
-	{"b/**/f", "b/symlink-dir/f", true, true, false, nil, false, false, false, !onWindows, 2, 2},
-	{"*/symlink-dir/*", "b/symlink-dir/f", true, true, false, nil, !onWindows, false, true, !onWindows, 2, 2},
+	{"symlinks/broken-symlink", "symlinks/broken-symlink", true, true, false, nil, false, false, true, false, 1, 1},
+	{"symlinks/broken-symlink/*", "a", false, false, false, nil, false, true, true, true, 0, 0},
+	{"symlinks/broken*/*", "a", false, false, false, nil, false, false, true, true, 0, 0},
+	{"symlinks/**/f", "symlinks/symlink-dir/f", true, true, false, nil, false, false, false, !onWindows || windowsHasSymlinks, 2, 2},
+	{"symlinks/*/xxx/*", "symlinks/symlink-dir/xxx/f", true, true, false, nil, false, false, true, !onWindows || windowsHasSymlinks, 1, 1},
+	{"*/symlink-dir/*", "symlinks/symlink-dir/f", true, true, false, nil, !onWindows, false, true, !onWindows || windowsHasSymlinks, 2, 2},
 	{"e/\\[x\\]/*", "e/[x]/[y]", true, true, false, nil, false, false, true, !onWindows, 1, 1},
 	{"e/\\[x\\]/*/z", "e/[x]/[y]/z", true, true, false, nil, false, false, true, !onWindows, 1, 1},
 	{"e/**/{z,other}", "e/[x]/[y]/z", true, true, false, nil, false, false, false, !onWindows, 1, 0},
@@ -821,7 +821,7 @@ func buildNumResults() {
 					filesOnly++
 				}
 
-				hasNoFollow := (strings.HasPrefix(tt.pattern, "working-symlink") || !strings.Contains(p, "working-symlink/")) && !strings.Contains(p, "/symlink-dir/")
+				hasNoFollow := (strings.HasPrefix(tt.pattern, "symlinks/working-symlink") || !strings.Contains(p, "symlinks/working-symlink/")) && !strings.Contains(p, "/symlink-dir/")
 				if hasNoFollow {
 					noFollow++
 				}
@@ -834,7 +834,7 @@ func buildNumResults() {
 					noHidden++
 				}
 
-				if hasNoFollow && hasNoHidden && (!isDir || p == "working-symlink") {
+				if hasNoFollow && hasNoHidden && (!isDir || p == "symlinks/working-symlink") {
 					allOpts++
 				}
 
@@ -868,10 +868,12 @@ func touch(parts ...string) string {
 	return filename
 }
 
-func symlink(oldname, newname string) {
-	// since this will only run on non-windows, we can assume "/" as path separator
+func symlink(oldnameParts, newnameParts []string) {
+	// ignore errors on Windows
+	oldname := path.Join(oldnameParts...)
+	newname := path.Join(newnameParts...)
 	err := os.Symlink(oldname, newname)
-	if err != nil && !os.IsExist(err) {
+	if !onWindows && err != nil && !os.IsExist(err) {
 		log.Fatalf("Could not create symlink %v -> %v: %v\n", oldname, newname, err)
 	}
 }
@@ -937,8 +939,18 @@ func TestMain(m *testing.M) {
 	touchHidden("testdata", "hidden-tests", "hidden-file")
 	touch("testdata", "hidden-tests", "visible-file")
 
-	if !onWindows {
-		// these files/symlinks won't work on Windows
+	mkdirp("testdata", "symlinks")
+	symlink([]string{"..", "axbxcxdxe"}, []string{"testdata", "symlinks", "symlink-dir"})
+	symlink([]string{"..", "nonexistant-file-20160902155705"}, []string{"testdata", "symlinks", "broken-symlink"})
+	symlink([]string{"..", "a", "abc"}, []string{"testdata", "symlinks", "working-symlink"})
+
+	if onWindows {
+		// Windows can only create symlinks if the process is run as an
+		// Administrator, or if dev mode is enabled. So, we need to check if those
+		// symlinks were actually created.
+		windowsHasSymlinks = exists("testdata", "symlinks", "working-symlink")
+	} else {
+		// these files won't work on Windows
 		touch("testdata", "-")
 		touch("testdata", "]")
 		touch("testdata", "e", "*")
@@ -951,10 +963,6 @@ func TestMain(m *testing.M) {
 		touch("testdata", "f", "*", "a")
 		mkdirp("testdata", "f", "?")
 		touch("testdata", "f", "?", "a")
-
-		symlink("../axbxcxdxe/", "testdata/b/symlink-dir")
-		symlink("/tmp/nonexistant-file-20160902155705", "testdata/broken-symlink")
-		symlink("a/b", "testdata/working-symlink")
 
 		if !exists("testdata", "nopermission") {
 			mkdirp("testdata", "nopermission", "dir")
