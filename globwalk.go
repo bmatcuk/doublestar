@@ -56,7 +56,45 @@ func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) e
 	}
 
 	g := newGlob(opts...)
-	return g.doGlobWalk(fsys, pattern, true, true, fn)
+	if !hasMidDoubleStar(pattern) && !strings.Contains(pattern, "{") {
+		return g.doGlobWalk(fsys, pattern, true, true, fn)
+	}
+	seen := make(map[string]struct{})
+	skippedDirs := make(map[string]struct{})
+	skippedContents := make(map[string]struct{})
+	return g.doGlobWalk(fsys, pattern, true, true, func(p string, d fs.DirEntry) error {
+		if _, ok := skippedDirs[p]; ok {
+			return SkipDir
+		}
+		for parent := path.Dir(p); ; parent = path.Dir(parent) {
+			if _, ok := skippedDirs[parent]; ok {
+				return nil
+			}
+			if _, ok := skippedContents[parent]; ok {
+				return nil
+			}
+			if parent == "." {
+				break
+			}
+		}
+		if _, ok := seen[p]; ok {
+			return nil
+		}
+		seen[p] = struct{}{}
+		err := fn(p, d)
+		if err == SkipDir {
+			isDir, dirErr := g.isDir(fsys, "", p, d)
+			if dirErr != nil {
+				return dirErr
+			}
+			if isDir {
+				skippedDirs[p] = struct{}{}
+			} else {
+				skippedContents[path.Dir(p)] = struct{}{}
+			}
+		}
+		return err
+	})
 }
 
 // Actually execute GlobWalk

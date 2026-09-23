@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"path"
+	"strings"
 )
 
 // Glob returns the names of all files matching pattern or nil if there is no
@@ -42,13 +43,32 @@ func Glob(fsys fs.FS, pattern string, opts ...GlobOption) ([]string, error) {
 		// ends in a `**`, both methods are pretty much the same, but Glob has a
 		// _very_ slight advantage because of lower function call overhead.
 		var matches []string
+		seen := make(map[string]struct{})
 		err := g.doGlobWalk(fsys, pattern, true, true, func(p string, d fs.DirEntry) error {
-			matches = append(matches, p)
+			if _, ok := seen[p]; !ok {
+				seen[p] = struct{}{}
+				matches = append(matches, p)
+			}
 			return nil
 		})
 		return matches, err
 	}
-	return g.doGlob(fsys, pattern, nil, true, true)
+	matches, err := g.doGlob(fsys, pattern, nil, true, true)
+	if err != nil {
+		return matches, err
+	}
+	if !strings.Contains(pattern, "{") {
+		return matches, nil
+	}
+	seen := make(map[string]struct{}, len(matches))
+	unique := matches[:0]
+	for _, p := range matches {
+		if _, ok := seen[p]; !ok {
+			seen[p] = struct{}{}
+			unique = append(unique, p)
+		}
+	}
+	return unique, nil
 }
 
 // Does the actual globbin'
