@@ -298,16 +298,19 @@ func doMatching(pattern string, nameComponents []string) (matched bool, err erro
 
 		// otherwise, try matching remaining components
 		for nameIdx := 0; nameIdx < nameLen; nameIdx++ {
-			if m, _ := doMatching(pattern[slashIdx+1:], nameComponents[nameIdx:]); m {
-				return true, nil
+			if m, err := doMatching(pattern[slashIdx+1:], nameComponents[nameIdx:]); m || err != nil {
+				return m, err
 			}
 		}
-		return false, nil
+		return false, validatePattern(pattern[slashIdx+1:])
 	}
 
 	var matches []string
 	matches, err = matchComponent(pattern, nameComponents[0])
 	if matches == nil || err != nil {
+		if err == nil {
+			err = validatePattern(pattern)
+		}
 		return
 	}
 	if len(matches) == 0 && nameLen == 1 {
@@ -319,6 +322,12 @@ func doMatching(pattern string, nameComponents []string) (matched bool, err erro
 			matched, err = doMatching(alt, nameComponents[1:])
 			if matched || err != nil {
 				return
+			}
+		}
+	} else {
+		for _, alt := range matches {
+			if err = validatePattern(alt); err != nil {
+				return false, err
 			}
 		}
 	}
@@ -668,6 +677,10 @@ func matchComponent(pattern, name string) ([]string, error) {
 			testPattern = pattern[:slashIdx]
 		}
 
+		if err := validateComponent(testPattern); err != nil {
+			return nil, err
+		}
+
 		zeroLength, err := isZeroLengthPattern(testPattern)
 		if err != nil {
 			return nil, err
@@ -681,4 +694,97 @@ func matchComponent(pattern, name string) ([]string, error) {
 		}
 	}
 	return nil, nil
+}
+
+// Validate that a single pattern component is syntactically valid.
+func validateComponent(pattern string) error {
+	patternLen := len(pattern)
+	patIdx := 0
+	for patIdx < patternLen {
+		patRune, patAdj := utf8.DecodeRuneInString(pattern[patIdx:])
+		if patRune == '\\' {
+			patIdx += patAdj
+			patRune, patAdj = utf8.DecodeRuneInString(pattern[patIdx:])
+			if patRune == utf8.RuneError {
+				return ErrBadPattern
+			}
+			patIdx += patAdj
+		} else if patRune == '[' {
+			patIdx += patAdj
+			endClass := indexRuneWithEscaping(pattern[patIdx:], ']')
+			if endClass == -1 {
+				return ErrBadPattern
+			}
+			endClass += patIdx
+			classRunes := []rune(pattern[patIdx:endClass])
+			classRunesLen := len(classRunes)
+			if classRunesLen == 0 {
+				return ErrBadPattern
+			}
+			classIdx := 0
+			if classRunes[0] == '^' {
+				classIdx++
+			}
+			for classIdx < classRunesLen {
+				low := classRunes[classIdx]
+				if low == '-' {
+					return ErrBadPattern
+				}
+				classIdx++
+				if low == '\\' {
+					if classIdx < classRunesLen {
+						low = classRunes[classIdx]
+						classIdx++
+					} else {
+						return ErrBadPattern
+					}
+				}
+				if classIdx < classRunesLen && classRunes[classIdx] == '-' {
+					if classIdx++; classIdx >= classRunesLen {
+						return ErrBadPattern
+					}
+					high := classRunes[classIdx]
+					if high == '-' {
+						return ErrBadPattern
+					}
+					classIdx++
+					if high == '\\' {
+						if classIdx < classRunesLen {
+							classIdx++
+						} else {
+							return ErrBadPattern
+						}
+					}
+				}
+			}
+			patIdx = endClass + 1
+		} else if patRune == '{' {
+			patIdx += patAdj
+			options, endOptions := splitAlternatives(pattern[patIdx:])
+			if endOptions == -1 {
+				return ErrBadPattern
+			}
+			for _, o := range options {
+				if err := validateComponent(o); err != nil {
+					return err
+				}
+			}
+			patIdx += endOptions
+		} else {
+			patIdx += patAdj
+		}
+	}
+	return nil
+}
+
+func validatePattern(pattern string) error {
+	slashIdx := indexRuneWithEscaping(pattern, '/')
+	for slashIdx != -1 {
+		if err := validateComponent(pattern[:slashIdx]); err != nil {
+			return err
+		}
+		pattern = pattern[slashIdx+1:]
+		slashIdx = indexRuneWithEscaping(pattern, '/')
+	}
+	return validateComponent(pattern)
 }
