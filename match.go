@@ -304,7 +304,7 @@ MATCH:
 			}
 		}
 
-		if validate && patIdx < patLen && !doValidatePattern(pattern[patIdx:], separator) {
+		if validate && patIdx < patLen && doValidatePattern(pattern[patIdx:], separator) != nil {
 			return false, ErrBadPattern
 		}
 		return false, nil
@@ -377,7 +377,7 @@ func isZeroLengthPattern(pattern string, separator rune, validate bool) (ret boo
 	}
 
 	// no luck - validate the rest of the pattern
-	if validate && !doValidatePattern(pattern, separator) {
+	if validate && doValidatePattern(pattern, separator) != nil {
 		return false, ErrBadPattern
 	}
 	return false, nil

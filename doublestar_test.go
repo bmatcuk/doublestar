@@ -1,6 +1,7 @@
 package doublestar
 
 import (
+	"errors"
 	"io/fs"
 	"log"
 	"os"
@@ -253,6 +254,42 @@ func testValidatePatternWith(t *testing.T, idx int, tt MatchTest) {
 	result := ValidatePattern(tt.pattern)
 	if result != (tt.expectedErr == nil) {
 		t.Errorf("#%v. ValidatePattern(%#q) = %v want %v", idx, tt.pattern, result, !result)
+	}
+
+	err := ParsePattern(tt.pattern)
+	if (err == nil) != (tt.expectedErr == nil) {
+		t.Errorf("#%v. ParsePattern(%#q) = %v want error: %v", idx, tt.pattern, err, tt.expectedErr != nil)
+	}
+	if err != nil && !errors.Is(err, ErrBadPattern) {
+		t.Errorf("#%v. ParsePattern(%#q) = %v, does not wrap ErrBadPattern", idx, tt.pattern, err)
+	}
+}
+
+func TestParsePatternErrors(t *testing.T) {
+	tests := []struct {
+		pattern string
+		want    string
+	}{
+		{"a\\", "syntax error in pattern: trailing escape character at offset 1"},
+		{"[abc", "syntax error in pattern: unclosed character class starting at offset 0"},
+		{"[]", "syntax error in pattern: empty character class at offset 0"},
+		{"a}", "syntax error in pattern: unmatched '}' at offset 1"},
+		{"{a,b", "syntax error in pattern: unclosed '{' at offset 0"},
+		{"{a,{b", "syntax error in pattern: unclosed '{' at offset 3"},
+		{"ab{c,d}[", "syntax error in pattern: unclosed character class starting at offset 7"},
+	}
+	for _, tt := range tests {
+		err := ParsePattern(tt.pattern)
+		if err == nil {
+			t.Errorf("ParsePattern(%#q) = nil, want %q", tt.pattern, tt.want)
+			continue
+		}
+		if err.Error() != tt.want {
+			t.Errorf("ParsePattern(%#q) = %q, want %q", tt.pattern, err.Error(), tt.want)
+		}
+		if !errors.Is(err, ErrBadPattern) {
+			t.Errorf("ParsePattern(%#q) does not wrap ErrBadPattern", tt.pattern)
+		}
 	}
 }
 
