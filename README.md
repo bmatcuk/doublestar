@@ -381,6 +381,31 @@ ValidatePattern if you would normally use Match() or Glob(). Use
 ValidatePathPattern if you would normally use PathMatch(). Keep in mind, Glob()
 requires '/' separators, even if your OS uses something else.
 
+### ParsePattern
+
+```go
+func ParsePattern(s string) error
+```
+
+Like ValidatePattern, only instead of a bool, returns nil if the pattern is
+valid, or an error describing the problem (including the byte offset where it
+was found) if it is not. The returned error wraps ErrBadPattern, so
+errors.Is(err, ErrBadPattern) will report true.
+
+ParsePattern assumes your pattern uses '/' as the path separator.
+
+### ParsePathPattern
+
+```go
+func ParsePathPattern(s string) error
+```
+
+Like ParsePattern, only uses your OS path separator. In other words, use
+ParsePattern if you would normally use Match() or Glob(). Use ParsePathPattern
+if you would normally use PathMatch(). Keep in mind, Glob() requires '/'
+separators, even if your OS uses something else. The returned error wraps
+ErrBadPattern.
+
 ### Patterns
 
 **doublestar** supports the following special terms in the patterns:
