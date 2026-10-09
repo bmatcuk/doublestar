@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io/fs"
 	"path"
+	"sort"
+	"strings"
 )
 
 // Glob returns the names of all files matching pattern or nil if there is no
@@ -34,6 +36,8 @@ func Glob(fsys fs.FS, pattern string, opts ...GlobOption) ([]string, error) {
 		return nil, ErrBadPattern
 	}
 
+	pattern = simplifyDoubleStars(pattern)
+
 	g := newGlob(opts...)
 
 	if hasMidDoubleStar(pattern) {
@@ -46,7 +50,13 @@ func Glob(fsys fs.FS, pattern string, opts ...GlobOption) ([]string, error) {
 			matches = append(matches, p)
 			return nil
 		})
-		return matches, err
+		if err != nil {
+			return nil, err
+		}
+		if len(matches) > 1 {
+			matches = deduplicateSorted(matches)
+		}
+		return matches, nil
 	}
 	return g.doGlob(fsys, pattern, nil, true, true)
 }
@@ -465,34 +475,135 @@ func buildAlt(prefix, pattern string, startIdx, openingIdx, currentIdx, nextIdx,
 
 // Running alts can produce results that are not sorted, and, worse, can cause
 // duplicates (consider the trivial pattern `path/to/{a,*}`). Since we know
-// each run of doGlob is sorted, we can basically do the "merge" step of a
-// merge sort in-place.
+// each run of doGlob is sorted, we can merge the two sorted segments while
+// removing duplicates.
 func sortAndRemoveDups(matches []string, idx1, idx2, l int) []string {
-	var tmp string
-	for ; idx1 < idx2; idx1++ {
-		if matches[idx1] < matches[idx2] {
-			// order is correct
-			continue
-		} else if matches[idx1] > matches[idx2] {
-			// need to swap and then re-sort matches above idx2
-			tmp = matches[idx1]
-			matches[idx1] = matches[idx2]
+	if idx1 >= idx2 || idx2 >= l {
+		return matches[:l]
+	}
 
-			shft := idx2 + 1
-			for ; shft < l && matches[shft] < tmp; shft++ {
-				matches[shft-1] = matches[shft]
-			}
-			matches[shft-1] = tmp
+	left := make([]string, idx2-idx1)
+	copy(left, matches[idx1:idx2])
+
+	i := 0
+	j := idx2
+	out := idx1
+
+	for i < len(left) && j < l {
+		var next string
+		if left[i] < matches[j] {
+			next = left[i]
+			i++
+		} else if matches[j] < left[i] {
+			next = matches[j]
+			j++
 		} else {
-			// duplicate - shift matches above idx2 down one and decrement l
-			for shft := idx2 + 1; shft < l; shft++ {
-				matches[shft-1] = matches[shft]
-			}
-			if l--; idx2 == l {
-				// nothing left to do... matches[idx2:] must have been full of dups
-				break
-			}
+			next = left[i]
+			i++
+			j++
+		}
+		if out == idx1 || matches[out-1] != next {
+			matches[out] = next
+			out++
 		}
 	}
-	return matches[:l]
+
+	for i < len(left) {
+		if out == idx1 || matches[out-1] != left[i] {
+			matches[out] = left[i]
+			out++
+		}
+		i++
+	}
+	for j < l {
+		if out == idx1 || matches[out-1] != matches[j] {
+			matches[out] = matches[j]
+			out++
+		}
+		j++
+	}
+
+	return matches[:out]
+}
+
+// simplifyDoubleStars simplifies patterns with consecutive doublestar segments,
+// such as replacing `a/**/**` with `a/**` or `**/**/b` with `**/b`.
+func simplifyDoubleStars(pattern string) string {
+	if !strings.Contains(pattern, "**/**") {
+		return pattern
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(pattern))
+	l := len(pattern)
+	inDoubleStar := false
+	startOfSegment := true
+
+	for i := 0; i < l; {
+		if pattern[i] == '\\' {
+			buf.WriteByte(pattern[i])
+			i++
+			if i < l {
+				buf.WriteByte(pattern[i])
+				i++
+			}
+			startOfSegment = false
+			inDoubleStar = false
+			continue
+		}
+
+		if startOfSegment && i+1 < l && pattern[i] == '*' && pattern[i+1] == '*' {
+			after := i + 2
+			isEnd := after == l || pattern[after] == '/' || pattern[after] == '{' || pattern[after] == '}' || pattern[after] == ','
+			if isEnd {
+				buf.WriteString("**")
+				i += 2
+				inDoubleStar = true
+				startOfSegment = false
+				continue
+			}
+		}
+
+		if inDoubleStar && pattern[i] == '/' {
+			next := i + 1
+			if next+1 < l && pattern[next] == '*' && pattern[next+1] == '*' {
+				afterNext := next + 2
+				isNextEnd := afterNext == l || pattern[afterNext] == '/' || pattern[afterNext] == '{' || pattern[afterNext] == '}' || pattern[afterNext] == ','
+				if isNextEnd {
+					// Redundant /** segment: skip '/' and '**'
+					i = next + 2
+					continue
+				}
+			}
+		}
+
+		c := pattern[i]
+		buf.WriteByte(c)
+		i++
+
+		if c == '/' || c == '{' || c == ',' {
+			startOfSegment = true
+			inDoubleStar = false
+		} else {
+			startOfSegment = false
+			inDoubleStar = false
+		}
+	}
+
+	return buf.String()
+}
+
+func deduplicateSorted(matches []string) []string {
+	if len(matches) <= 1 {
+		return matches
+	}
+	sort.Strings(matches)
+	j := 1
+	for i := 1; i < len(matches); i++ {
+		if matches[i] != matches[i-1] {
+			matches[j] = matches[i]
+			j++
+		}
+	}
+	return matches[:j]
 }
