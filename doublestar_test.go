@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 type MatchTest struct {
@@ -460,6 +461,86 @@ func TestGlob(t *testing.T) {
 func TestGlobWithCaseInsensitive(t *testing.T) {
 	if fsIsCaseSensitive {
 		doGlobTest(t, nil, WithCaseInsensitive())
+	}
+}
+
+func TestCaseInsensitiveRanges(t *testing.T) {
+	tests := []struct {
+		pattern, name string
+		want          bool
+	}{
+		{"[a-c]", "B", true},
+		{"[A-C]", "b", true},
+		{"[a-c]", "C", true},
+		{"[A-C]", "c", true},
+		{"[a-c]", "D", false},
+		{"[A-C]", "d", false},
+		{"[^a-c]", "B", false},
+		{"[!A-C]", "b", false},
+		{"[^a-c]", "D", true},
+		{"[A-z]", "_", true},
+		{"[A-b]", "c", true},
+		{"[.-0]", ".", true},
+		{"[0-9]", "5", true},
+		{"[à-å]", "Ä", true},
+		{"[À-Å]", "ä", true},
+		{"[Σ-Τ]", "σ", true},
+		{"[Σ-Τ]", "ς", false},
+		{"[I-J]", "ı", false},
+		{"[R-T]", "ſ", false},
+		{"[Μ-Ν]", "µ", false},
+		{"[℩-Å]", "k", true},
+		{"[Į-ı]", "i", true},
+		{"[a-c]x", "Bx", true},
+		{"*[a-c]", "xyzB", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern+"/"+tt.name, func(t *testing.T) {
+			got, err := matchWithSeparator(tt.pattern, tt.name, '/', true, true)
+			if err != nil || got != tt.want {
+				t.Errorf("matchWithSeparator(%q, %q) = %v, %v; want %v, nil", tt.pattern, tt.name, got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestGlobCaseInsensitiveRanges(t *testing.T) {
+	fsys := fstest.MapFS{
+		"A": &fstest.MapFile{}, "B": &fstest.MapFile{}, "C": &fstest.MapFile{},
+		"a": &fstest.MapFile{}, "b": &fstest.MapFile{}, "c": &fstest.MapFile{},
+		"D": &fstest.MapFile{}, "d": &fstest.MapFile{},
+	}
+	tests := []struct {
+		pattern         string
+		want            []string
+		caseInsensitive bool
+	}{
+		{"[a-c]", []string{"A", "B", "C", "a", "b", "c"}, true},
+		{"[A-C]", []string{"A", "B", "C", "a", "b", "c"}, true},
+		{"[^a-c]", []string{"D", "d"}, true},
+		{"[!A-C]", []string{"D", "d"}, true},
+		{"[a-c]", []string{"a", "b", "c"}, false},
+		{"[A-C]", []string{"A", "B", "C"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			var opts []GlobOption
+			if tt.caseInsensitive {
+				opts = append(opts, WithCaseInsensitive())
+			}
+			matches, err := Glob(fsys, tt.pattern, opts...)
+			if err != nil || !compareSlices(matches, tt.want) {
+				t.Errorf("Glob(%q) = %v, %v; want %v, nil", tt.pattern, matches, err, tt.want)
+			}
+			var walked []string
+			err = GlobWalk(fsys, tt.pattern, func(p string, d fs.DirEntry) error {
+				walked = append(walked, p)
+				return nil
+			}, opts...)
+			if err != nil || !compareSlices(walked, tt.want) {
+				t.Errorf("GlobWalk(%q) = %v, %v; want %v, nil", tt.pattern, walked, err, tt.want)
+			}
+		})
 	}
 }
 

@@ -176,7 +176,7 @@ MATCH:
 						patRune, patRuneLen = utf8.DecodeRuneInString(pattern[patIdx:])
 						patIdx += patRuneLen
 
-						if last <= nameRune && nameRune <= patRune {
+						if matchRange(last, patRune, nameRune, caseInsensitive) {
 							matched = true
 							break
 						}
@@ -314,6 +314,28 @@ MATCH:
 	// reached the end of `pattern`, or if the rest of `pattern` can match a
 	// zero-length string
 	return isZeroLengthPattern(pattern[patIdx:], separator, validate)
+}
+
+func matchRange(lo, hi, r rune, caseInsensitive bool) bool {
+	if lo <= r && r <= hi {
+		return true
+	}
+	if !caseInsensitive {
+		return false
+	}
+
+	lower := unicode.ToLower(r)
+	for candidate := lower; ; {
+		if lo <= candidate && candidate <= hi && unicode.ToLower(candidate) == lower {
+			return true
+		}
+		candidate = unicode.SimpleFold(candidate)
+		if candidate == lower {
+			break
+		}
+	}
+	// ToLower includes dotted capital I, which SimpleFold leaves separate.
+	return lower == 'i' && lo <= '\u0130' && '\u0130' <= hi
 }
 
 func matchRune(a, b rune, caseInsensitive bool) bool {
