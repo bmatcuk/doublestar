@@ -201,6 +201,8 @@ var matchTests = []MatchTest{
 	{"case-sensitive/fi*", "case-sensitive/file", true, true, false, nil, false, false, true, !onWindows, 1, 1},
 	{"case-sensitive/FI*", "case-sensitive/FILE", true, true, true, nil, false, false, true, !onWindows, 1, 1},
 	{"case-sensitive/Fi*", "case-sensitive/File", true, true, true, nil, false, false, true, !onWindows, 1, 1},
+	{"case-sensitive/[f]*", "case-sensitive/file", true, true, true, nil, false, false, false, !onWindows, 3, 3},
+	{"case-sensitive/[a-z]*", "case-sensitive/file", true, true, true, nil, false, false, false, !onWindows, 3, 3},
 	{"nonexistent-path", "a", false, false, false, nil, false, true, true, true, 0, 0},
 	{"nonexistent-path/", "a", false, false, false, nil, false, true, true, true, 0, 0},
 	{"nonexistent-path/file", "a", false, false, false, nil, false, true, true, true, 0, 0},
