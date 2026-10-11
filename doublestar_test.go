@@ -201,8 +201,8 @@ var matchTests = []MatchTest{
 	{"case-sensitive/fi*", "case-sensitive/file", true, true, false, nil, false, false, true, !onWindows, 1, 1},
 	{"case-sensitive/FI*", "case-sensitive/FILE", true, true, true, nil, false, false, true, !onWindows, 1, 1},
 	{"case-sensitive/Fi*", "case-sensitive/File", true, true, true, nil, false, false, true, !onWindows, 1, 1},
-	{"case-sensitive/[f]*", "case-sensitive/file", true, true, true, nil, false, false, false, !onWindows, 3, 3},
-	{"case-sensitive/[a-z]*", "case-sensitive/file", true, true, true, nil, false, false, false, !onWindows, 3, 3},
+	{"case-sensitive/[f]*", "case-sensitive/file", true, true, true, nil, false, false, false, !onWindows, 1, 1},
+	{"case-sensitive/[a-z]*", "case-sensitive/file", true, true, true, nil, false, false, false, !onWindows, 1, 1},
 	{"nonexistent-path", "a", false, false, false, nil, false, true, true, true, 0, 0},
 	{"nonexistent-path/", "a", false, false, false, nil, false, true, true, true, 0, 0},
 	{"nonexistent-path/file", "a", false, false, false, nil, false, true, true, true, 0, 0},
@@ -222,6 +222,10 @@ var matchTests = []MatchTest{
 
 // True if the file system supports case-sensitive filenames
 var fsIsCaseSensitive = false
+
+// Calculate the number of results that we expect
+// WithCaseInsensitive at runtime and memoize them here
+var numResultsCaseInsensitive []int
 
 // Calculate the number of results that we expect
 // WithFilesOnly at runtime and memoize them here
@@ -461,7 +465,7 @@ func TestGlob(t *testing.T) {
 
 func TestGlobWithCaseInsensitive(t *testing.T) {
 	if fsIsCaseSensitive {
-		doGlobTest(t, nil, WithCaseInsensitive())
+		doGlobTest(t, numResultsCaseInsensitive, WithCaseInsensitive())
 	}
 }
 
@@ -544,7 +548,7 @@ func TestGlobWalkWithNoHidden(t *testing.T) {
 }
 
 func TestGlobWalkWithAllOptions(t *testing.T) {
-	doGlobWalkTest(t, numResultsAllOpts, WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly(), WithNoFollow(), WithNoHidden())
+	doGlobWalkTest(t, numResultsAllOpts, WithCaseInsensitive(), WithFailOnIOErrors(), WithFailOnPatternNotExist(), WithFilesOnly(), WithNoFollow(), WithNoHidden())
 }
 
 func doGlobWalkTest(t *testing.T, numResults []int, opts ...GlobOption) {
@@ -804,6 +808,7 @@ func compareSlices(a, b []string) bool {
 
 func buildNumResults() {
 	testLen := len(matchTests)
+	numResultsCaseInsensitive = make([]int, testLen)
 	numResultsFilesOnly = make([]int, testLen)
 	numResultsNoFollow = make([]int, testLen)
 	numResultsNoHidden = make([]int, testLen)
@@ -813,11 +818,18 @@ func buildNumResults() {
 	g := newGlob()
 	for idx, tt := range matchTests {
 		if tt.testOnDisk {
+			caseInsensitive := 0
 			filesOnly := 0
 			noFollow := 0
 			noHidden := 0
 			allOpts := 0
 			GlobWalk(fsys, tt.pattern, func(p string, d fs.DirEntry) error {
+				caseInsensitive++
+				hasCaseInsensitive := fsIsCaseSensitive && strings.HasPrefix(tt.pattern, "case-sensitive/[")
+				if hasCaseInsensitive {
+					caseInsensitive += 2
+				}
+
 				isDir, _ := g.isDir(fsys, "", p, d)
 				if !isDir {
 					filesOnly++
@@ -838,11 +850,15 @@ func buildNumResults() {
 
 				if hasNoFollow && hasNoHidden && (!isDir || p == "symlinks/working-symlink") {
 					allOpts++
+					if hasCaseInsensitive {
+						allOpts += 2
+					}
 				}
 
 				return nil
 			})
 
+			numResultsCaseInsensitive[idx] = caseInsensitive
 			numResultsFilesOnly[idx] = filesOnly
 			numResultsNoFollow[idx] = noFollow
 			numResultsNoHidden[idx] = noHidden
@@ -973,9 +989,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// initialize numResultsFilesOnly
-	buildNumResults()
-
 	// We created three files with identical names in the `testdata/case-sensitive`
 	// directory, only differing by case. If there's only one file in there, it's
 	// because the filesystem is _not_ case-sensitive.
@@ -985,6 +998,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	fsIsCaseSensitive = len(matches) == 3
+
+	// initialize numResultsFilesOnly
+	buildNumResults()
 
 	os.Exit(m.Run())
 }
