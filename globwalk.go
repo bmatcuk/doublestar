@@ -335,6 +335,9 @@ func (g *glob) globDirWalk(fsys fs.FS, dir, pattern string, canMatchFiles, befor
 
 // recursively walk files/directories in a directory
 func (g *glob) globDoubleStarWalk(fsys fs.FS, dir string, canMatchFiles bool, fn GlobWalkFunc) (e error) {
+	if g.alreadyWalked(fsys, dir) {
+		return nil
+	}
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
