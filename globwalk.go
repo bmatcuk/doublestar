@@ -55,6 +55,8 @@ func GlobWalk(fsys fs.FS, pattern string, fn GlobWalkFunc, opts ...GlobOption) e
 		return ErrBadPattern
 	}
 
+	pattern = simplifyDoubleStars(pattern)
+
 	g := newGlob(opts...)
 	return g.doGlobWalk(fsys, pattern, true, true, fn)
 }
