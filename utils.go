@@ -3,7 +3,6 @@ package doublestar
 import (
 	"errors"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -122,10 +121,10 @@ func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err err
 	if matches, err = Glob(fs, f, opts...); err != nil {
 		return nil, err
 	}
+
+	baseResult := filepath.FromSlash(base)
 	for i := range matches {
-		// use path.Join because we used ToSlash above to ensure our paths are made
-		// of forward slashes, no matter what the system uses
-		matches[i] = filepath.FromSlash(path.Join(base, matches[i]))
+		matches[i] = filepath.Join(baseResult, filepath.FromSlash(matches[i]))
 	}
 	return
 }
