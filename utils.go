@@ -167,9 +167,9 @@ func escapeMeta(path string) string {
 	return escapeMetaReplacer.Replace(path)
 }
 
-var unescapeMetaReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}")
+var unescapeMetaReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}", "\\\\", "\\")
 
-// Unescapes meta characters (*?[]{})
+// Unescapes meta characters (*?[]{}) and backslashes
 func unescapeMeta(pattern string) string {
 	return unescapeMetaReplacer.Replace(pattern)
 }
