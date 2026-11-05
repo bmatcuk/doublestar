@@ -265,6 +265,9 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 }
 
 func (g *glob) globDoubleStar(fsys fs.FS, dir string, matches []string, canMatchFiles, beforeMeta bool) ([]string, error) {
+	if g.alreadyWalked(fsys, dir) {
+		return matches, nil
+	}
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
