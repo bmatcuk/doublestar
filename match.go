@@ -2,6 +2,7 @@ package doublestar
 
 import (
 	"path/filepath"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -333,33 +334,35 @@ func matchRune(a, b rune, caseInsensitive bool) bool {
 
 func isZeroLengthPattern(pattern string, separator rune, validate bool) (ret bool, err error) {
 	// `/**`, `**/`, and `/**/` are special cases - a pattern such as `path/to/a/**` or `path/to/a/**/`
-	// *should* match `path/to/a` because `a` might be a directory.
-	// This code is optimized to avoid string concatenation, giving a little performance bump.
-	switch len(pattern) {
-	case 0:
+	// *should* match `path/to/a` because `a` might be a directory. The same goes for any run of
+	// `**` segments, such as `path/to/a/**/**`, and for a `**` alternative, such as `path/to/a/{**,b}`.
+	switch pattern {
+	case "", "*", "**":
 		return true, nil
-	case 1:
-		if pattern == "*" {
+	}
+
+	// skip a leading separator and any `**` segments that follow it
+	prefix, rest := "", pattern
+	if r, l := utf8.DecodeRuneInString(rest); r == separator {
+		prefix, rest = rest[:l], rest[l:]
+	}
+	for strings.HasPrefix(rest, "**") {
+		after := rest[2:]
+		if after == "" {
 			return true, nil
 		}
-	case 2:
-		if pattern == "**" {
-			return true, nil
+		r, l := utf8.DecodeRuneInString(after)
+		if r != separator {
+			break
 		}
-	case 3:
-		if pattern[1:] == "**" && rune(pattern[0]) == separator {
-			return true, nil
-		} else if pattern[:2] == "**" && rune(pattern[2]) == separator {
-			return true, nil
-		}
-	case 4:
-		if pattern[1:3] == "**" && rune(pattern[0]) == separator && rune(pattern[3]) == separator {
+		prefix, rest = after[:l], after[l:]
+		if rest == "" {
 			return true, nil
 		}
 	}
 
-	if pattern[0] == '{' {
-		closingIdx := indexMatchedClosingAlt(pattern[1:], separator != '\\')
+	if len(rest) > 0 && rest[0] == '{' {
+		closingIdx := indexMatchedClosingAlt(rest[1:], separator != '\\')
 		if closingIdx == -1 {
 			// no closing '}'
 			return false, ErrBadPattern
@@ -368,20 +371,20 @@ func isZeroLengthPattern(pattern string, separator rune, validate bool) (ret boo
 
 		patIdx := 1
 		for {
-			commaIdx := indexNextAlt(pattern[patIdx:closingIdx], separator != '\\')
+			commaIdx := indexNextAlt(rest[patIdx:closingIdx], separator != '\\')
 			if commaIdx == -1 {
 				break
 			}
 			commaIdx += patIdx
 
-			ret, err = isZeroLengthPattern(pattern[patIdx:commaIdx]+pattern[closingIdx+1:], separator, validate)
+			ret, err = isZeroLengthPattern(prefix+rest[patIdx:commaIdx]+rest[closingIdx+1:], separator, validate)
 			if ret || err != nil {
 				return
 			}
 
 			patIdx = commaIdx + 1
 		}
-		return isZeroLengthPattern(pattern[patIdx:closingIdx]+pattern[closingIdx+1:], separator, validate)
+		return isZeroLengthPattern(prefix+rest[patIdx:closingIdx]+rest[closingIdx+1:], separator, validate)
 	}
 
 	// no luck - validate the rest of the pattern
