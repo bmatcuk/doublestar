@@ -169,8 +169,9 @@ MATCH:
 
 					// match a range
 					if last < utf8.MaxRune && patRune == '-' && patIdx < patLen && pattern[patIdx] != ']' {
-						if pattern[patIdx] == '\\' {
-							// next character is escaped
+						if separator != '\\' && pattern[patIdx] == '\\' {
+							// next character is escaped (disabled when the
+							// separator is backslash, as in PathMatch on Windows)
 							patIdx++
 						}
 						patRune, patRuneLen = utf8.DecodeRuneInString(pattern[patIdx:])
@@ -187,7 +188,7 @@ MATCH:
 					}
 
 					// not a range - check if the next rune is escaped
-					if patRune == '\\' {
+					if separator != '\\' && patRune == '\\' {
 						patRune, patRuneLen = utf8.DecodeRuneInString(pattern[patIdx:])
 						patIdx += patRuneLen
 					}
@@ -211,7 +212,7 @@ MATCH:
 					break
 				}
 
-				closingIdx := indexUnescapedByte(pattern[patIdx:], ']', true)
+				closingIdx := indexUnescapedByte(pattern[patIdx:], ']', separator != '\\')
 				if closingIdx == -1 {
 					// no closing `]`
 					return false, ErrBadPattern
