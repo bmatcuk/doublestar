@@ -436,6 +436,30 @@ func testPathMatchFakeWith(t *testing.T, idx int, tt MatchTest) {
 	}
 }
 
+func TestPathMatchWindowsCharacterClassEscapes(t *testing.T) {
+	// On Windows, PathMatch disables escaping, so a backslash inside a
+	// character class is a literal (and ValidatePathPattern already agrees).
+	cases := []struct {
+		pattern, name string
+		want          bool
+		wantErr       error
+	}{
+		{`[A-\x]`, "m", false, nil},
+		{`[A-\x]`, `\`, true, nil},
+		{`[x\]`, "x", true, nil},
+		{`[x\]`, `\`, true, nil},
+	}
+	for _, tc := range cases {
+		ok, err := matchWithSeparator(tc.pattern, tc.name, '\\', true, false)
+		if ok != tc.want || err != tc.wantErr {
+			t.Errorf("matchWithSeparator(%q, %q, %q) = %v, %v want %v, %v", tc.pattern, tc.name, '\\', ok, err, tc.want, tc.wantErr)
+		}
+		if !doValidatePattern(tc.pattern, '\\') {
+			t.Errorf("doValidatePattern(%q, %q) = false, want true", tc.pattern, '\\')
+		}
+	}
+}
+
 func BenchmarkPathMatch(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
