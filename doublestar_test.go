@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 type MatchTest struct {
@@ -718,6 +719,59 @@ func verifyGlobResults(t *testing.T, idx int, fn string, tt MatchTest, g *glob, 
 	}
 	if err != expectedErr {
 		t.Errorf("#%v. %v(%#q, %#v) has error %v, but should be %v", idx, fn, tt.pattern, g, err, expectedErr)
+	}
+}
+
+// Glob's pattern syntax is the same as Match()'s, which allows _any_ character
+// to be escaped with a backslash, not just meta characters. A segment without
+// meta characters still needs to be unescaped before checking the file system,
+// or `Glob(fsys, "\\f")` would look for a file literally named `\f`.
+func TestGlobEscapedNonMetaCharacters(t *testing.T) {
+	fsys := fstest.MapFS{
+		"f":   &fstest.MapFile{Data: []byte("f")},
+		"x.i": &fstest.MapFile{Data: []byte("x")},
+		"a/e": &fstest.MapFile{Data: []byte("e")},
+		"*":   &fstest.MapFile{Data: []byte("star")},
+	}
+
+	tests := []struct {
+		pattern string
+		want    []string
+	}{
+		{"\\f", []string{"f"}},
+		{"x\\.i", []string{"x.i"}},
+		{"a/\\e", []string{"a/e"}},
+		{"\\*", []string{"*"}}, // escaping meta characters still works
+	}
+
+	for _, tt := range tests {
+		for _, want := range tt.want {
+			if ok, err := Match(tt.pattern, want); err != nil || !ok {
+				t.Errorf("Match(%#q, %#q) = %v, %v; want true", tt.pattern, want, ok, err)
+			}
+		}
+
+		matches, err := Glob(fsys, tt.pattern)
+		if err != nil {
+			t.Errorf("Glob(fsys, %#q) unexpected error: %v", tt.pattern, err)
+			continue
+		}
+		if !compareSlices(matches, tt.want) {
+			t.Errorf("Glob(fsys, %#q) = %#v; want %#v", tt.pattern, matches, tt.want)
+		}
+
+		var walkMatches []string
+		err = GlobWalk(fsys, tt.pattern, func(p string, d fs.DirEntry) error {
+			walkMatches = append(walkMatches, p)
+			return nil
+		})
+		if err != nil {
+			t.Errorf("GlobWalk(fsys, %#q) unexpected error: %v", tt.pattern, err)
+			continue
+		}
+		if !compareSlices(walkMatches, tt.want) {
+			t.Errorf("GlobWalk(fsys, %#q) = %#v; want %#v", tt.pattern, walkMatches, tt.want)
+		}
 	}
 }
 

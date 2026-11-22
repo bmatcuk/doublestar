@@ -167,9 +167,22 @@ func escapeMeta(path string) string {
 	return escapeMetaReplacer.Replace(path)
 }
 
-var unescapeMetaReplacer = strings.NewReplacer("\\*", "*", "\\?", "?", "\\[", "[", "\\]", "]", "\\{", "{", "\\}", "}")
-
-// Unescapes meta characters (*?[]{})
+// Unescapes escaped characters. Like Match(), Glob() allows any character to
+// be escaped with a backslash, not just meta characters, so a pattern that
+// contains no meta characters may still contain escapes that must be removed
+// before the path can be used with the file system: `\c` becomes `c` for
+// every c.
 func unescapeMeta(pattern string) string {
-	return unescapeMetaReplacer.Replace(pattern)
+	if !strings.Contains(pattern, "\\") {
+		return pattern
+	}
+
+	buf := make([]byte, 0, len(pattern))
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '\\' && i+1 < len(pattern) {
+			i++
+		}
+		buf = append(buf, pattern[i])
+	}
+	return string(buf)
 }
