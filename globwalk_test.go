@@ -3,6 +3,7 @@ package doublestar
 import (
 	"io/fs"
 	"os"
+	"path"
 	"testing"
 )
 
@@ -25,6 +26,14 @@ var skipTests = []SkipTest{
 	{"a/{**,c/*}", "a/abc", "a/b", 1, 1},
 }
 
+var symlinkSkipTests = []SkipTest{
+	{"symlinks/**", "symlinks/symlink-dir", "symlinks/symlink-dir/f", 3, 3},
+}
+
+var symlinkNoFollowSkipTests = []SkipTest{
+	{"symlinks/**", "symlinks/symlink-dir", "symlinks/working-symlink", 2, 2},
+}
+
 func TestSkipDirInGlobWalk(t *testing.T) {
 	fsys := os.DirFS("testdata")
 	for idx, tt := range skipTests {
@@ -32,7 +41,23 @@ func TestSkipDirInGlobWalk(t *testing.T) {
 	}
 }
 
-func testSkipDirInGlobWalkWith(t *testing.T, idx int, tt SkipTest, fsys fs.FS) {
+func TestSymlinkSkipDirInGlobWalk(t *testing.T) {
+	// ensure the symlinks exist - they may not on Windows
+	p := path.Join("testdata", "symlinks", "symlink-dir")
+	if _, err := os.Lstat(p); err != nil {
+		t.Skip("Symlinks do not exist.")
+	}
+
+	fsys := os.DirFS("testdata")
+	for idx, tt := range symlinkSkipTests {
+		testSkipDirInGlobWalkWith(t, idx, tt, fsys)
+	}
+	for idx, tt := range symlinkNoFollowSkipTests {
+		testSkipDirInGlobWalkWith(t, idx, tt, fsys, WithNoFollow())
+	}
+}
+
+func testSkipDirInGlobWalkWith(t *testing.T, idx int, tt SkipTest, fsys fs.FS, opts ...GlobOption) {
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf("#%v. GlobWalk(%#q) panicked: %#v", idx, tt.pattern, r)
@@ -50,7 +75,7 @@ func testSkipDirInGlobWalkWith(t *testing.T, idx int, tt SkipTest, fsys fs.FS) {
 		}
 		matches = append(matches, p)
 		return nil
-	})
+	}, opts...)
 
 	expected := tt.numResults
 	if onWindows {
