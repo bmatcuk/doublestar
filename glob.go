@@ -349,12 +349,27 @@ func indexMeta(s string) int {
 // Returns the index of the last unescaped slash or closing alt (`}`) in the
 // string, or negative 1.
 func lastIndexSlashOrAlt(s string) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if (s[i] == '/' || s[i] == '}') && (i == 0 || s[i-1] != '\\') {
-			return i
+	idx := -1
+	l := len(s)
+	for i := 0; i < l; i++ {
+		if s[i] == '\\' {
+			// skip next byte
+			i++
+		} else if s[i] == '[' {
+			// skip the character class so a '/' or '}' within it isn't mistaken
+			// for a separator or the closing brace of an alternation
+			for i++; i < l; i++ {
+				if s[i] == '\\' {
+					i++
+				} else if s[i] == ']' {
+					break
+				}
+			}
+		} else if s[i] == '/' || s[i] == '}' {
+			idx = i
 		}
 	}
-	return -1
+	return idx
 }
 
 // Returns the index of the last unescaped slash in the string, or negative 1.
@@ -369,19 +384,34 @@ func lastIndexSlash(s string) int {
 
 // Assuming the byte after the end of `s` is a closing `}`, this function will
 // find the index of the matching `{`. That is, it'll skip over any nested `{}`
-// and account for escaping.
+// and character classes, and account for escaping.
 func indexMatchedOpeningAlt(s string) int {
-	alts := 1
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == '}' && (i == 0 || s[i-1] != '\\') {
-			alts++
-		} else if s[i] == '{' && (i == 0 || s[i-1] != '\\') {
-			if alts--; alts == 0 {
-				return i
+	openings := make([]int, 0, 8)
+	l := len(s)
+	for i := 0; i < l; i++ {
+		if s[i] == '\\' {
+			// skip next byte
+			i++
+		} else if s[i] == '[' {
+			// skip the character class so a '{' or '}' within it isn't mistaken
+			// for alternation syntax
+			for i++; i < l; i++ {
+				if s[i] == '\\' {
+					i++
+				} else if s[i] == ']' {
+					break
+				}
 			}
+		} else if s[i] == '{' {
+			openings = append(openings, i)
+		} else if s[i] == '}' && len(openings) > 0 {
+			openings = openings[:len(openings)-1]
 		}
 	}
-	return -1
+	if len(openings) == 0 {
+		return -1
+	}
+	return openings[len(openings)-1]
 }
 
 // Returns true if the path exists
