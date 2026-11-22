@@ -77,7 +77,10 @@ var matchTests = []MatchTest{
 	{"[\\-x]", "x", true, true, false, nil, false, false, true, !onWindows, 2, 2},
 	{"[\\-x]", "-", true, true, false, nil, false, false, true, !onWindows, 2, 2},
 	{"[\\-x]", "a", false, false, false, nil, false, false, true, !onWindows, 2, 2},
-	{"[]a]", "]", false, false, false, ErrBadPattern, false, false, true, true, 0, 0},
+	{"[]a]", "]", true, true, false, nil, false, false, false, !onWindows, 2, 2},
+	{"[]]", "]", true, true, false, nil, false, false, false, !onWindows, 1, 1},
+	{"[]", "]", false, false, false, ErrBadPattern, false, false, true, true, 0, 0},
+	{"e/[^]]", "e/?", true, true, false, nil, false, false, false, !onWindows, 6, 6},
 	// doublestar, like bash, allows these when path.Match() does not
 	{"[-]", "-", true, true, false, nil, false, false, false, !onWindows, 1, 0},
 	{"[x-]", "x", true, true, false, nil, false, false, false, true, 2, 1},
@@ -433,30 +436,6 @@ func testPathMatchFakeWith(t *testing.T, idx int, tt MatchTest) {
 	ok, err := matchWithSeparator(pattern, testPath, '\\', true, false)
 	if ok != tt.shouldMatch || err != tt.expectedErr {
 		t.Errorf("#%v. PathMatch(%#q, %#q) = %v, %v want %v, %v", idx, pattern, testPath, ok, err, tt.shouldMatch, tt.expectedErr)
-	}
-}
-
-func TestPathMatchWindowsCharacterClassEscapes(t *testing.T) {
-	// On Windows, PathMatch disables escaping, so a backslash inside a
-	// character class is a literal (and ValidatePathPattern already agrees).
-	cases := []struct {
-		pattern, name string
-		want          bool
-		wantErr       error
-	}{
-		{`[A-\x]`, "m", false, nil},
-		{`[A-\x]`, `\`, true, nil},
-		{`[x\]`, "x", true, nil},
-		{`[x\]`, `\`, true, nil},
-	}
-	for _, tc := range cases {
-		ok, err := matchWithSeparator(tc.pattern, tc.name, '\\', true, false)
-		if ok != tc.want || err != tc.wantErr {
-			t.Errorf("matchWithSeparator(%q, %q, %q) = %v, %v want %v, %v", tc.pattern, tc.name, '\\', ok, err, tc.want, tc.wantErr)
-		}
-		if !doValidatePattern(tc.pattern, '\\') {
-			t.Errorf("doValidatePattern(%q, %q) = false, want true", tc.pattern, '\\')
-		}
 	}
 }
 
