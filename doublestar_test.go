@@ -77,7 +77,10 @@ var matchTests = []MatchTest{
 	{"[\\-x]", "x", true, true, false, nil, false, false, true, !onWindows, 2, 2},
 	{"[\\-x]", "-", true, true, false, nil, false, false, true, !onWindows, 2, 2},
 	{"[\\-x]", "a", false, false, false, nil, false, false, true, !onWindows, 2, 2},
-	{"[]a]", "]", false, false, false, ErrBadPattern, false, false, true, true, 0, 0},
+	{"[]a]", "]", true, true, false, nil, false, false, false, !onWindows, 2, 2},
+	{"[]]", "]", true, true, false, nil, false, false, false, !onWindows, 1, 1},
+	{"[]", "]", false, false, false, ErrBadPattern, false, false, true, true, 0, 0},
+	{"e/[^]]", "e/?", true, true, false, nil, false, false, false, !onWindows, 6, 6},
 	// doublestar, like bash, allows these when path.Match() does not
 	{"[-]", "-", true, true, false, nil, false, false, false, !onWindows, 1, 0},
 	{"[x-]", "x", true, true, false, nil, false, false, false, true, 2, 1},
