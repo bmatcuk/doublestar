@@ -227,6 +227,15 @@ MATCH:
 				}
 
 				patIdx += closingIdx + 1
+
+				if nameRune == separator {
+					// a character class cannot match the path separator, just
+					// like `?`. This matches the documented behavior (see the
+					// Patterns table in the README) even when the class itself
+					// would otherwise accept the separator rune.
+					break
+				}
+
 				nameIdx += nameRuneLen
 				continue
 

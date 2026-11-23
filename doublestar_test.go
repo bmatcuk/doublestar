@@ -105,6 +105,16 @@ var matchTests = []MatchTest{
 	{"[abc]", "b", true, true, false, nil, false, false, true, true, 3, 3},
 	{"[abc123]", "1", true, true, false, nil, false, false, true, true, 4, 4},
 	{"[a-z0-9]", "1", true, true, false, nil, false, false, true, true, 8, 8},
+	// a character class must not match the path separator, consistent with
+	// `?` and the README's Patterns table (#126). These intentionally diverge
+	// from path.Match/filepath.Match, so they are not standard.
+	{"a[/]b", "a/b", false, false, false, nil, false, false, false, false, 0, 0},
+	{"a[^x]b", "a/b", false, false, false, nil, false, false, false, false, 0, 0},
+	{"a[.-z]b", "a/b", false, false, false, nil, false, false, false, false, 0, 0},
+	{"a[abc]b", "a/b", false, false, false, nil, false, false, false, false, 0, 0},
+	// an unterminated class is still reported as a bad pattern even when the
+	// candidate rune is the separator (validation is preserved).
+	{"a[/b", "a/b", false, false, false, ErrBadPattern, false, false, false, false, 0, 0},
 	{"**", "", true, true, false, nil, false, false, false, false, 38, 38},
 	{"a/**", "a", true, true, false, nil, false, false, false, true, 7, 7},
 	{"a/**/", "a", true, true, false, nil, false, false, false, true, 4, 4},
