@@ -1,6 +1,9 @@
 package doublestar
 
-import "strings"
+import (
+	"io/fs"
+	"strings"
+)
 
 // glob is an internal type to store options during globbing.
 type glob struct {
@@ -10,6 +13,7 @@ type glob struct {
 	filesOnly             bool
 	noFollow              bool
 	noHidden              bool
+	visitedDirs           []fs.FileInfo
 }
 
 // GlobOption represents a setting that can be passed to Glob, GlobWalk, and
