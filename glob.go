@@ -212,6 +212,34 @@ func (g *glob) globDir(fsys fs.FS, dir, pattern string, matches []string, canMat
 		return g.globDoubleStar(fsys, dir, m, canMatchFiles, beforeMeta)
 	}
 
+	if !g.caseInsensitive && !g.noFollow && indexMeta(pattern) == -1 {
+		// the pattern is a static segment, so the entry can be matched by name
+		// directly instead of listing the directory. Besides avoiding the
+		// directory read entirely, this also allows descending into
+		// directories that lack read permission but are executable, since only
+		// the explicitly named path has to be stat'ed.
+		p := path.Join(dir, unescapeMeta(pattern))
+		info, pathExists, err := g.exists(fsys, p, beforeMeta)
+		if err != nil {
+			return nil, err
+		}
+		if pathExists {
+			matched := canMatchFiles
+			if !matched || g.filesOnly {
+				matched = info.IsDir()
+				if canMatchFiles {
+					// if we're here, it's because g.filesOnly
+					// is set and we don't want directories
+					matched = !matched
+				}
+			}
+			if matched {
+				m = append(m, p)
+			}
+		}
+		return
+	}
+
 	dirs, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
